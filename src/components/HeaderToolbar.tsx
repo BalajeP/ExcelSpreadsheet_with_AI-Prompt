@@ -81,20 +81,20 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
 
   return (
     <header className="bg-slate-900/90 border-b border-slate-800 backdrop-blur-md px-4 py-3 sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 shadow-lg">
-      {/* App Logo & Title */}
+      {/* App Logo & Welcome Banner */}
       <div className="flex items-center gap-3">
         <div className="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-2 rounded-xl text-white shadow-md shadow-indigo-500/20">
           <Sparkles className="w-5 h-5 animate-pulse" />
         </div>
         <div>
-          <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-2">
-            SheetAI Copilot
+          <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight flex items-center gap-2">
+            Hello Sankari <span className="text-indigo-400 font-bold">(Quality Analyst)</span>
             <span className="text-xs bg-indigo-500/20 text-indigo-300 font-semibold px-2 py-0.5 rounded-full border border-indigo-500/30">
-              PWA
+              Quality Dashboard
             </span>
           </h1>
-          <p className="text-xs text-slate-400 font-medium hidden sm:block">
-            Smart Excel Spreadsheet & AI Dashboard Generator
+          <p className="text-xs text-slate-400 font-normal">
+            Welcome to Quality Dashboard — How can I help you?
           </p>
         </div>
       </div>
@@ -176,7 +176,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
         <button
           onClick={onResetData}
           className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition"
-          title="Reset to Sample Data"
+          title="Reset Spreadsheet"
         >
           <RefreshCw className="w-4 h-4" />
         </button>

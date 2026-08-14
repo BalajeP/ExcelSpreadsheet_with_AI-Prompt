@@ -36,7 +36,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     {
       id: 'init-1',
       sender: 'ai',
-      text: 'Hello! I am your SheetAI Copilot. You can prompt me to create circular pie charts, bar graphs, add new entries, format cells, or summarize data!',
+      text: 'Hello Sankari (Quality Analyst)! Welcome to Quality Dashboard.\n\nHow can I help you today?',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -44,7 +44,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
   const quickPrompts = [
     { label: '🥧 Circular Pie Chart (Data1 & Count)', text: 'create a circular pie chart from the data of column Data1 and Count' },
     { label: '📊 Bar Chart (Category & Count)', text: 'create a bar chart comparing Count across Categories' },
-    { label: '➕ Add Entry (Cloud Storage 180)', text: 'add a new row with Date 2026-08-15, Category Cloud, Data1 Storage Node D, Count 180, Status Completed' },
+    { label: '➕ Add QA Record (Test Case A, Count 15)', text: 'add a new row with Date 2026-08-15, Category Functionality, Data1 Test Case A, Count 15, Status Passed' },
     { label: '🟢 Highlight Count > 100', text: 'highlight all rows where count is greater than 100' },
     { label: '📈 Total Count KPI Card', text: 'create a total count KPI summary card' },
   ];
@@ -110,10 +110,10 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
           </div>
           <div>
             <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
-              AI Copilot Assistant
+              Quality AI Copilot
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
             </h3>
-            <p className="text-[11px] text-slate-400">Natural language grid & dashboard controller</p>
+            <p className="text-[11px] text-slate-400">Quality Analyst natural language assistant</p>
           </div>
         </div>
 
@@ -156,10 +156,15 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
               className={`max-w-[88%] p-3 rounded-2xl text-xs leading-relaxed ${
                 msg.sender === 'user'
                   ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-none shadow-md'
-                  : 'bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm'
+                  : 'bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm font-medium'
               }`}
             >
-              {msg.text}
+              {msg.text.split('\n').map((line, lIdx) => (
+                <React.Fragment key={lIdx}>
+                  {line}
+                  {lIdx < msg.text.split('\n').length - 1 && <br />}
+                </React.Fragment>
+              ))}
 
               {msg.actionTaken && (
                 <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold">
