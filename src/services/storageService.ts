@@ -1,16 +1,36 @@
-import type { SheetData, DashboardWidget, AppSettings } from '../types';
+import type { SheetData, DashboardWidget, AppSettings, ColumnMeta, GridRow } from '../types';
 
 const STORAGE_KEYS = {
-  SHEET_DATA: 'ai_excel_sheet_data_v3',
-  DASHBOARD_WIDGETS: 'ai_excel_widgets_v3',
-  SETTINGS: 'ai_excel_settings_v3',
+  SHEET_DATA: 'ai_excel_sheet_data_v4',
+  DASHBOARD_WIDGETS: 'ai_excel_widgets_v4',
+  SETTINGS: 'ai_excel_settings_v4',
 };
+
+// Create 26 default Excel alphabet columns (A to Z)
+const defaultExcelCols: ColumnMeta[] = Array.from({ length: 26 }, (_, i) => {
+  const letter = String.fromCharCode(65 + i);
+  return {
+    key: letter.toLowerCase(),
+    label: letter,
+    type: 'string',
+    width: 95,
+  };
+});
+
+// Create 35 default empty rows
+const defaultExcelRows: GridRow[] = Array.from({ length: 35 }, () => {
+  const row: GridRow = {};
+  defaultExcelCols.forEach((col) => {
+    row[col.key] = { raw: '' };
+  });
+  return row;
+});
 
 export const INITIAL_SHEET_DATA: SheetData = {
   id: 'sheet-1',
-  title: 'Quality Analytics & Test Records',
-  columns: [], // Clean start - no headers initially
-  rows: [],    // Clean start - no rows initially
+  title: 'Book1 - Excel',
+  columns: defaultExcelCols,
+  rows: defaultExcelRows,
 };
 
 export const INITIAL_WIDGETS: DashboardWidget[] = [];

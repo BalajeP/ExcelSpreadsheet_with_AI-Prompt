@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { SheetData, GridRow, ColumnMeta } from '../types';
-import { Plus, Trash2, Search, Hash, Type, Calendar, Edit2, Check, X, FileUp, FileSpreadsheet } from 'lucide-react';
-import { ExportService } from '../services/exportService';
+import { Plus, Trash2, Search, Check } from 'lucide-react';
 
 interface SpreadsheetGridProps {
   sheetData: SheetData;
@@ -18,10 +17,17 @@ interface SpreadsheetGridProps {
 export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sheetData,
   onUpdateSheetData,
-  onImport,
   highlightCondition,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Cell Selection State
+  const [selectedCell, setSelectedCell] = useState<{ rowIndex: number; colKey: string }>({
+    rowIndex: 0,
+    colKey: sheetData.columns[0]?.key || 'a',
+  });
+
+  // Cell Editing State
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; colKey: string } | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -29,15 +35,40 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [editingColKey, setEditingColKey] = useState<string | null>(null);
   const [editColLabel, setEditColLabel] = useState('');
 
-  // Handle cell edit save
+  // Selected cell address label (e.g. A1, B2)
+  const activeColMeta = sheetData.columns.find((c) => c.key === selectedCell.colKey);
+  const activeColIndex = sheetData.columns.findIndex((c) => c.key === selectedCell.colKey);
+  const activeColLetter = activeColMeta ? activeColMeta.label : String.fromCharCode(65 + Math.max(0, activeColIndex));
+  const cellAddressLabel = `${activeColLetter}${selectedCell.rowIndex + 1}`;
+
+  const currentActiveCellRaw = sheetData.rows[selectedCell.rowIndex]?.[selectedCell.colKey]?.raw ?? '';
+
+  // Handle Formula Bar Input
+  const handleFormulaInputChange = (val: string) => {
+    const newRows = [...sheetData.rows];
+    if (!newRows[selectedCell.rowIndex]) {
+      newRows[selectedCell.rowIndex] = {};
+    }
+
+    newRows[selectedCell.rowIndex] = {
+      ...newRows[selectedCell.rowIndex],
+      [selectedCell.colKey]: {
+        ...newRows[selectedCell.rowIndex][selectedCell.colKey],
+        raw: val,
+      },
+    };
+
+    onUpdateSheetData({ ...sheetData, rows: newRows });
+  };
+
+  // Save Cell Edit
   const handleSaveCell = (rowIndex: number, colKey: string) => {
     if (!editingCell) return;
 
     const newRows = [...sheetData.rows];
-    const column = sheetData.columns.find((c) => c.key === colKey);
     let parsedVal: string | number = editValue;
 
-    if (column?.type === 'number' && editValue !== '' && !editValue.startsWith('=')) {
+    if (editValue !== '' && !editValue.startsWith('=')) {
       const num = Number(editValue);
       if (!isNaN(num)) parsedVal = num;
     }
@@ -75,7 +106,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // Delete Column
   const handleDeleteColumn = (colKey: string) => {
     if (sheetData.columns.length <= 1) {
-      onUpdateSheetData({ ...sheetData, columns: [], rows: [] });
+      alert('Cannot delete the last column.');
       return;
     }
 
@@ -123,30 +154,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Add new row
   const handleAddRow = () => {
-    let currentCols = sheetData.columns;
-
-    // If no columns exist yet, auto create default columns
-    if (currentCols.length === 0) {
-      currentCols = [
-        { key: 'date', label: 'Date', type: 'date', width: 130 },
-        { key: 'category', label: 'Category', type: 'string', width: 140 },
-        { key: 'data1', label: 'Test Case / Data1', type: 'string', width: 180 },
-        { key: 'count', label: 'Count', type: 'number', width: 110 },
-        { key: 'status', label: 'Status', type: 'string', width: 130 },
-      ];
-    }
-
     const newRow: GridRow = {};
-    currentCols.forEach((col) => {
-      if (col.type === 'number') newRow[col.key] = { raw: 10 };
-      else if (col.type === 'date') newRow[col.key] = { raw: new Date().toISOString().split('T')[0] };
-      else if (col.key === 'status') newRow[col.key] = { raw: 'Passed' };
-      else newRow[col.key] = { raw: 'New Record' };
+    sheetData.columns.forEach((col) => {
+      newRow[col.key] = { raw: '' };
     });
 
     onUpdateSheetData({
       ...sheetData,
-      columns: currentCols,
       rows: [...sheetData.rows, newRow],
     });
   };
@@ -159,7 +173,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Add new column
   const handleAddColumn = () => {
-    const colName = prompt('Enter New Column Header Name:', 'New Column');
+    const colName = prompt('Enter New Column Header Name:', `Col ${sheetData.columns.length + 1}`);
     if (!colName) return;
 
     const key = colName.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -167,12 +181,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       key,
       label: colName,
       type: 'string',
-      width: 140,
+      width: 95,
     };
 
     const newRows = sheetData.rows.map((r) => ({
       ...r,
-      [key]: { raw: '-' },
+      [key]: { raw: '' },
     }));
 
     onUpdateSheetData({
@@ -180,22 +194,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       columns: [...sheetData.columns, newCol],
       rows: newRows,
     });
-  };
-
-  // Center File Upload Handler
-  const handleCenterFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const imported = await ExportService.importFile(file);
-        if (imported) {
-          if (onImport) onImport(imported);
-          else onUpdateSheetData(imported);
-        }
-      } catch (err) {
-        alert('Failed to import file. Make sure it is a valid .xlsx or .csv file.');
-      }
-    }
   };
 
   // Filtered rows
@@ -210,180 +208,154 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     );
   }, [sheetData, searchTerm]);
 
-  const isEmptySheet = sheetData.columns.length === 0 && sheetData.rows.length === 0;
-
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden relative">
-      {/* Grid Control Bar */}
-      <div className="p-3 bg-slate-800/80 border-b border-slate-700/60 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 max-w-md">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search cells, categories, values..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={isEmptySheet}
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition disabled:opacity-50"
-            />
-          </div>
+    <div className="flex flex-col h-full bg-white text-slate-900 rounded-none border border-slate-300 shadow-xl overflow-hidden font-sans select-text">
+      {/* 1. Formula Bar (fx) matching Excel screenshot */}
+      <div className="flex items-center gap-2 bg-[#f3f3f3] border-b border-[#d4d4d4] px-3 py-1.5 text-xs text-slate-800">
+        {/* Cell Name Box e.g. A1 */}
+        <div className="w-16 px-2 py-0.5 bg-white border border-[#c6c6c6] text-center font-semibold text-slate-800 text-[11px] shadow-inner select-none">
+          {cellAddressLabel}
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* fx Trigger & Buttons */}
+        <div className="flex items-center gap-1 border-x border-[#d4d4d4] px-2 text-slate-500 font-serif italic text-xs select-none">
+          <span className="font-bold text-slate-600 hover:text-emerald-700 cursor-pointer">fx</span>
+        </div>
+
+        {/* Formula Input Box */}
+        <input
+          type="text"
+          value={String(currentActiveCellRaw)}
+          onChange={(e) => handleFormulaInputChange(e.target.value)}
+          placeholder="Enter text or formula starting with ="
+          className="flex-1 bg-white border border-[#c6c6c6] rounded-none px-2.5 py-0.5 text-xs text-slate-900 font-mono outline-none focus:border-[#107c41] shadow-inner"
+        />
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-1.5 ml-2">
           <button
             onClick={handleAddRow}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-md shadow-indigo-600/20 transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-[#107c41] hover:bg-[#0e6e39] text-white text-[11px] font-semibold rounded shadow-sm transition"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Add Row
+            <Plus className="w-3 h-3" />
+            Row
           </button>
           <button
             onClick={handleAddColumn}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg border border-slate-600 transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold rounded border border-slate-300 transition"
           >
-            <Plus className="w-3.5 h-3.5 text-slate-400" />
-            Add Column
+            <Plus className="w-3 h-3 text-slate-600" />
+            Col
           </button>
+          <div className="relative w-36 ml-1 hidden sm:block">
+            <Search className="w-3 h-3 absolute left-2 top-1.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Find..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-slate-300 rounded pl-6 pr-2 py-0.5 text-[11px] text-slate-800 placeholder-slate-400 outline-none focus:border-[#107c41]"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      {isEmptySheet ? (
-        /* Center Import & Start Hero Box */
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-950/80">
-          <div className="max-w-md w-full bg-slate-900/90 border border-slate-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
-            <div className="p-4 bg-indigo-500/10 rounded-2xl text-indigo-400 border border-indigo-500/20">
-              <FileSpreadsheet className="w-10 h-10 animate-bounce" />
-            </div>
+      {/* 2. Authentic Excel Table Grid */}
+      <div className="flex-1 overflow-auto bg-[#ffffff]">
+        <table className="w-full border-collapse text-left text-xs table-fixed">
+          <thead>
+            <tr className="bg-[#f3f3f3] sticky top-0 z-10 border-b border-[#d4d4d4] text-[#444444] font-medium select-none">
+              {/* Corner Cell */}
+              <th className="w-10 px-2 py-1 text-center text-[#777777] bg-[#e6e6e6] border-r border-[#d4d4d4] font-semibold text-[11px]">
+                ◢
+              </th>
 
-            <div>
-              <h2 className="text-lg font-bold text-white">Import Data or Build Spreadsheet</h2>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Upload your existing Excel (`.xlsx`) or CSV file, or add your first row or column to get started.
-              </p>
-            </div>
+              {/* Column Headers (A, B, C... Z) */}
+              {sheetData.columns.map((col) => {
+                const isEditingCol = editingColKey === col.key;
+                const isColSelected = selectedCell.colKey === col.key;
 
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full mt-2">
-              {/* Center Import Button */}
-              <label className="flex-1 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer">
-                <FileUp className="w-4 h-4" />
-                Import (.xlsx / .csv)
-                <input
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleCenterFileChange}
-                  className="hidden"
-                />
-              </label>
+                return (
+                  <th
+                    key={col.key}
+                    onClick={() => setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: col.key })}
+                    className={`px-2 py-1 border-r border-[#d4d4d4] min-w-[85px] group relative text-center text-[11px] font-semibold ${
+                      isColSelected ? 'bg-[#d9ebe1] text-[#107c41] font-bold border-b-2 border-b-[#107c41]' : 'hover:bg-[#e8e8e8]'
+                    }`}
+                    style={{ width: col.width || 90 }}
+                  >
+                    {isEditingCol ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editColLabel}
+                          onChange={(e) => setEditColLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveColumnHeader(col.key);
+                            if (e.key === 'Escape') setEditingColKey(null);
+                          }}
+                          className="w-full bg-white text-slate-900 border border-[#107c41] px-1 py-0.5 text-xs outline-none shadow"
+                        />
+                        <button
+                          onClick={() => handleSaveColumnHeader(col.key)}
+                          className="text-emerald-700 hover:text-emerald-800 p-0.5"
+                        >
+                          <Check className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span
+                          onDoubleClick={() => {
+                            setEditingColKey(col.key);
+                            setEditColLabel(col.label);
+                          }}
+                          className="flex-1 truncate cursor-pointer"
+                          title="Double click to rename column header"
+                        >
+                          {col.label}
+                        </span>
 
-              {/* Add Row Button */}
-              <button
-                onClick={handleAddRow}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition"
-              >
-                <Plus className="w-4 h-4 text-indigo-400" />
-                Add Row
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Main Data Table */
-        <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="bg-slate-800/90 sticky top-0 z-10 border-b border-slate-700 text-slate-300 font-semibold select-none">
-                <th className="w-12 px-3 py-2.5 text-center text-slate-500 border-r border-slate-700/60">#</th>
-                {sheetData.columns.map((col) => {
-                  const isEditingCol = editingColKey === col.key;
-
-                  return (
-                    <th
-                      key={col.key}
-                      className="px-4 py-2 border-r border-slate-700/60 min-w-[140px] group relative"
-                      style={{ width: col.width }}
-                    >
-                      {isEditingCol ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            autoFocus
-                            value={editColLabel}
-                            onChange={(e) => setEditColLabel(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveColumnHeader(col.key);
-                              if (e.key === 'Escape') setEditingColKey(null);
+                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteColumn(col.key);
                             }}
-                            className="w-full bg-slate-950 text-indigo-200 border border-indigo-500 rounded px-2 py-0.5 text-xs outline-none"
-                          />
-                          <button
-                            onClick={() => handleSaveColumnHeader(col.key)}
-                            className="text-emerald-400 hover:text-emerald-300 p-0.5"
+                            className="text-slate-400 hover:text-rose-600 p-0.5"
+                            title="Delete Column"
                           >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingColKey(null)}
-                            className="text-slate-400 hover:text-white p-0.5"
-                          >
-                            <X className="w-3.5 h-3.5" />
+                            <Trash2 className="w-2.5 h-2.5" />
                           </button>
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-between gap-1">
-                          <span
-                            onDoubleClick={() => {
-                              setEditingColKey(col.key);
-                              setEditColLabel(col.label);
-                            }}
-                            className="font-semibold text-slate-200 flex items-center gap-1.5 cursor-pointer hover:text-indigo-300 transition truncate"
-                            title="Double click to rename column header"
-                          >
-                            {col.type === 'number' && <Hash className="w-3 h-3 text-indigo-400" />}
-                            {col.type === 'date' && <Calendar className="w-3 h-3 text-pink-400" />}
-                            {col.type === 'string' && <Type className="w-3 h-3 text-emerald-400" />}
-                            {col.label}
-                          </span>
+                      </div>
+                    )}
+                  </th>
+                );
+              })}
+              <th className="w-8 px-1 py-1"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#e1e1e1]">
+            {filteredRows.map((row, rowIndex) => {
+              const isRowSelected = selectedCell.rowIndex === rowIndex;
 
-                          {/* Hover Actions: Edit / Delete Column */}
-                          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition">
-                            <button
-                              onClick={() => {
-                                setEditingColKey(col.key);
-                                setEditColLabel(col.label);
-                              }}
-                              className="text-slate-400 hover:text-indigo-300 p-0.5"
-                              title="Rename column"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteColumn(col.key)}
-                              className="text-slate-400 hover:text-rose-400 p-0.5"
-                              title="Delete column"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                  );
-                })}
-                <th className="w-12 px-2 py-2.5 text-center"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredRows.map((row, rowIndex) => (
-                <tr key={rowIndex} className="hover:bg-slate-800/40 transition-colors group">
-                  {/* Row Index */}
-                  <td className="px-3 py-2 text-center text-slate-500 font-mono text-[11px] border-r border-slate-800 select-none">
+              return (
+                <tr key={rowIndex} className="hover:bg-[#f5f5f5] transition-colors group">
+                  {/* Row Number Header (1, 2, 3...) */}
+                  <td
+                    onClick={() => setSelectedCell({ rowIndex, colKey: selectedCell.colKey })}
+                    className={`w-10 px-2 py-1 text-center font-mono text-[11px] border-r border-[#d4d4d4] select-none cursor-pointer ${
+                      isRowSelected ? 'bg-[#d9ebe1] text-[#107c41] font-bold border-r-2 border-r-[#107c41]' : 'bg-[#f3f3f3] text-[#666666]'
+                    }`}
+                  >
                     {rowIndex + 1}
                   </td>
 
-                  {/* Columns */}
+                  {/* Columns Data Cells */}
                   {sheetData.columns.map((col) => {
+                    const isSelected = selectedCell.rowIndex === rowIndex && selectedCell.colKey === col.key;
                     const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === col.key;
                     const displayValue = evaluateCellValue(row, col.key);
 
@@ -402,28 +374,32 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       <td
                         key={col.key}
                         onClick={() => {
+                          setSelectedCell({ rowIndex, colKey: col.key });
                           setEditingCell({ rowIndex, colKey: col.key });
                           setEditValue(String(row[col.key]?.raw ?? ''));
                         }}
-                        className={`px-4 py-2 border-r border-slate-800/80 cursor-pointer transition ${
-                          isHighlighted ? 'bg-emerald-500/20 text-emerald-300 font-semibold' : ''
-                        } hover:bg-indigo-500/10`}
+                        className={`px-2 py-1 border-r border-b border-[#e1e1e1] cursor-pointer relative transition text-xs select-text ${
+                          isSelected ? 'outline outline-2 outline-[#107c41] bg-[#eef7f2] z-10' : ''
+                        } ${isHighlighted ? 'bg-emerald-100 text-emerald-900 font-semibold' : ''}`}
                       >
                         {isEditing ? (
                           <input
                             type="text"
                             autoFocus
                             value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
+                            onChange={(e) => {
+                              setEditValue(e.target.value);
+                              handleFormulaInputChange(e.target.value);
+                            }}
                             onBlur={() => handleSaveCell(rowIndex, col.key)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveCell(rowIndex, col.key);
                               if (e.key === 'Escape') setEditingCell(null);
                             }}
-                            className="w-full bg-indigo-950 text-indigo-100 border border-indigo-500 rounded px-2 py-0.5 text-xs outline-none shadow-inner"
+                            className="w-full bg-white text-slate-900 border border-[#107c41] px-1 py-0 text-xs outline-none shadow-inner"
                           />
                         ) : (
-                          <span className={`block truncate ${col.type === 'number' ? 'font-mono text-right' : ''}`}>
+                          <span className={`block truncate ${typeof displayValue === 'number' ? 'text-right font-mono' : ''}`}>
                             {String(displayValue)}
                           </span>
                         )}
@@ -431,27 +407,39 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     );
                   })}
 
-                  {/* Delete Row button */}
-                  <td className="px-2 py-2 text-center">
+                  {/* Delete Row Hover Button */}
+                  <td className="px-1 py-1 text-center select-none">
                     <button
                       onClick={() => handleDeleteRow(rowIndex)}
-                      className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-1 transition"
-                      title="Delete row"
+                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 p-0.5 transition"
+                      title="Delete Row"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Grid Footer Info */}
-      <div className="px-4 py-2 bg-slate-850 border-t border-slate-800 text-[11px] text-slate-400 flex justify-between items-center">
-        <span>Total Records: {sheetData.rows.length} rows</span>
-        <span>Double-click column header to rename • Click cell to edit • Hover to delete row/column</span>
+      {/* 3. Excel Bottom Status Bar (Sheet1, +, Ready, Zoom) */}
+      <div className="px-3 py-1 bg-[#f3f3f3] border-t border-[#d4d4d4] text-[11px] text-slate-600 flex items-center justify-between select-none">
+        <div className="flex items-center gap-3">
+          {/* Active Sheet Tab */}
+          <div className="flex items-center bg-white border-t-2 border-t-[#107c41] border-x border-[#d4d4d4] px-3 py-0.5 font-bold text-[#107c41] text-[11px]">
+            Sheet1
+          </div>
+          <button onClick={handleAddColumn} className="p-0.5 hover:bg-slate-200 rounded text-slate-500" title="Add Sheet">
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-4 text-[11px] text-slate-500">
+          <span>Ready</span>
+          <span>100%</span>
+        </div>
       </div>
     </div>
   );
