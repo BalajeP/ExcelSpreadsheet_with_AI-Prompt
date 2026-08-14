@@ -10,8 +10,7 @@ import {
   Check,
   Edit3,
   RotateCcw,
-  Camera,
-  Image as ImageIcon
+  Plus
 } from 'lucide-react';
 import type { AiChatMessage, SheetData, DashboardWidget } from '../types';
 import { AiEngine } from '../services/aiEngine';
@@ -48,7 +47,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     {
       id: 'init-1',
       sender: 'ai',
-      text: 'Hello Sankari (Quality Analyst)! Welcome to Quality Dashboard.\n\nHow can I help you today? You can type prompts or attach screenshots!',
+      text: 'Hello Sankari (Quality Analyst)! Welcome to Quality Dashboard.\n\nHow can I help you today? You can type prompts or add files (+)!',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -131,7 +130,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     if ((!text.trim() && !selectedImage) || isProcessing) return;
 
     const currentImage = selectedImage;
-    const finalPromptText = text.trim() || (currentImage ? 'Analyze attached screenshot and generate dashboard widget' : '');
+    const finalPromptText = text.trim() || (currentImage ? 'Analyze attached file and generate dashboard widget' : '');
 
     const userMsg: AiChatMessage = {
       id: `user-${Date.now()}`,
@@ -194,7 +193,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
               Quality AI Copilot
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
             </h3>
-            <p className="text-[11px] text-slate-400 select-text">Natural language & screenshot assistant</p>
+            <p className="text-[11px] text-slate-400 select-text">Natural language & file assistant</p>
           </div>
         </div>
 
@@ -222,13 +221,13 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
                     : 'bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm font-medium'
                 }`}
               >
-                {/* Attached Screenshot Image Display in Chat */}
+                {/* Attached File/Image Display in Chat */}
                 {msg.imageUrl && (
-                  <div className="mb-2 overflow-hidden rounded-xl border border-indigo-400/40 shadow-sm">
+                  <div className="mb-2 overflow-hidden rounded-xl border border-indigo-400/40 shadow-sm max-w-xs">
                     <img
                       src={msg.imageUrl}
-                      alt="Attached Screenshot"
-                      className="max-h-48 w-full object-cover rounded-xl hover:scale-105 transition"
+                      alt="Attached File"
+                      className="max-h-40 w-full object-cover rounded-xl hover:scale-105 transition"
                     />
                   </div>
                 )}
@@ -244,7 +243,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setEditingMsgId(null)}
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium rounded-lg transition cursor-pointer"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-750 text-slate-300 text-[11px] font-medium rounded-lg transition cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -316,14 +315,14 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
         {isProcessing && (
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-medium p-2.5 bg-indigo-500/10 rounded-xl w-fit">
             <Zap className="w-4 h-4 animate-bounce" />
-            Analyzing prompt & screenshot...
+            Analyzing prompt & attached file...
           </div>
         )}
       </div>
 
-      {/* Prompt Input Form & Screenshot Upload Controls */}
+      {/* Prompt Input Form & Add File (+) Controls */}
       <div className="p-3.5 border-t border-slate-800 bg-slate-900/95 select-text">
-        {/* Hidden Screenshot File Input */}
+        {/* Hidden File Input */}
         <input
           type="file"
           ref={fileInputRef}
@@ -332,23 +331,6 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
           className="hidden"
         />
 
-        {/* Selected Screenshot Thumbnail Preview */}
-        {selectedImage && (
-          <div className="mb-2 relative w-24 h-24 rounded-xl border-2 border-emerald-500/80 overflow-hidden group shadow-md">
-            <img src={selectedImage} alt="Screenshot Preview" className="w-full h-full object-cover" />
-            <button
-              onClick={() => setSelectedImage(null)}
-              className="absolute top-1 right-1 bg-slate-950/80 text-white rounded-full p-1 hover:bg-rose-600 transition"
-              title="Remove screenshot"
-            >
-              <X className="w-3 h-3" />
-            </button>
-            <span className="absolute bottom-0 inset-x-0 bg-emerald-950/80 text-emerald-300 text-[9px] text-center font-bold py-0.5">
-              Screenshot Attached
-            </span>
-          </div>
-        )}
-
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -356,28 +338,37 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
           }}
           className="flex flex-col gap-2"
         >
-          {/* Action Toolbar above textarea: Screenshot Button */}
-          <div className="flex items-center justify-between">
+          {/* Small File Thumbnail Preview if attached */}
+          {selectedImage && (
+            <div className="flex items-center gap-2 mb-1">
+              <div className="relative w-11 h-11 rounded-lg border border-emerald-500/80 overflow-hidden shadow-xs shrink-0 group">
+                <img src={selectedImage} alt="Attached File" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-0.5 right-0.5 bg-slate-950/90 text-white rounded-full p-0.5 hover:bg-rose-600 transition cursor-pointer"
+                  title="Remove file"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+              <span className="text-[11px] text-emerald-400 font-semibold">1 File Attached</span>
+            </div>
+          )}
+
+          <div className="relative flex items-center">
+            {/* (+) Add File Icon Button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-400 text-[11px] font-bold rounded-lg transition cursor-pointer"
-              title="Attach Screenshot / Image for AI Analysis"
+              className="absolute left-2.5 top-3 p-1.5 bg-slate-800 hover:bg-emerald-950/80 border border-slate-700 hover:border-emerald-600 text-slate-300 hover:text-emerald-400 rounded-lg transition cursor-pointer shadow-xs active:scale-95"
+              title="Add File / Screenshot (+)"
             >
-              <Camera className="w-3.5 h-3.5" />
-              Attach Screenshot
+              <Plus className="w-4 h-4" />
             </button>
 
-            {selectedImage && (
-              <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                <ImageIcon className="w-3 h-3" /> 1 Screenshot Ready
-              </span>
-            )}
-          </div>
-
-          <div className="relative flex items-center">
             <textarea
-              placeholder="Type your AI prompt or attach a screenshot..."
+              placeholder="Type your AI prompt..."
               value={promptInput}
               onChange={(e) => setPromptInput(e.target.value)}
               onKeyDown={(e) => {
@@ -388,8 +379,9 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
               }}
               rows={3}
               disabled={isProcessing}
-              className="w-full bg-slate-950 border border-slate-700/80 focus:border-indigo-500 rounded-2xl pl-4 pr-12 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition shadow-inner select-text resize-none"
+              className="w-full bg-slate-950 border border-slate-700/80 focus:border-indigo-500 rounded-2xl pl-12 pr-12 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition shadow-inner select-text resize-none"
             />
+
             <button
               type="submit"
               disabled={(!promptInput.trim() && !selectedImage) || isProcessing}
@@ -399,6 +391,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
               <Send className="w-4 h-4" />
             </button>
           </div>
+
           <div className="flex items-center justify-between text-[10px] text-slate-500 px-1 font-medium">
             <span>Press Enter to send</span>
             <span>Shift + Enter for new line</span>
