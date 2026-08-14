@@ -30,6 +30,11 @@ export interface SheetData {
   rows: GridRow[];
 }
 
+export interface WorkbookData {
+  activeSheetId: string;
+  sheets: SheetData[];
+}
+
 export type ChartType = 'pie' | 'doughnut' | 'bar' | 'line';
 
 export interface DashboardWidget {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { SheetData, DashboardWidget, AppSettings } from './types';
-import { StorageService } from './services/storageService';
+import type { SheetData, WorkbookData, DashboardWidget, AppSettings } from './types';
+import { StorageService, createNewSheet } from './services/storageService';
 import { ExportService } from './services/exportService';
 import { HeaderToolbar } from './components/HeaderToolbar';
 import { SpreadsheetGrid } from './components/SpreadsheetGrid';
@@ -10,11 +10,17 @@ import { SettingsModal } from './components/SettingsModal';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'sheet' | 'dashboard'>('sheet');
-  const [sheetData, setSheetData] = useState<SheetData>(StorageService.loadSheetData);
+  const [workbookData, setWorkbookData] = useState<WorkbookData>(StorageService.loadWorkbookData);
   const [widgets, setWidgets] = useState<DashboardWidget[]>(StorageService.loadWidgets);
   const [settings, setSettings] = useState<AppSettings>(StorageService.loadSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [highlightCondition, setHighlightCondition] = useState<any>(null);
+
+  // Active sheet reference
+  const activeSheet =
+    workbookData.sheets.find((s) => s.id === workbookData.activeSheetId) ||
+    workbookData.sheets[0] ||
+    createNewSheet(1);
 
   // Active cell tracking for formatting ribbon commands
   const [activeCellLocation, setActiveCellLocation] = useState<{
@@ -24,13 +30,13 @@ export const App: React.FC = () => {
     raw?: string | number;
   }>({
     rowIndex: 0,
-    colKey: sheetData.columns[0]?.key || 'a',
+    colKey: activeSheet.columns[0]?.key || 'a',
   });
 
-  // Auto-save sheet data on change
+  // Auto-save workbook data on change
   useEffect(() => {
-    StorageService.saveSheetData(sheetData);
-  }, [sheetData]);
+    StorageService.saveWorkbookData(workbookData);
+  }, [workbookData]);
 
   // Auto-save dashboard widgets on change
   useEffect(() => {
@@ -42,36 +48,77 @@ export const App: React.FC = () => {
     StorageService.saveSettings(settings);
   }, [settings]);
 
-  const handleUpdateSheetData = (newSheet: SheetData) => {
-    setSheetData(newSheet);
+  // Worksheet Handlers
+  const handleSelectSheet = (sheetId: string) => {
+    setWorkbookData((prev) => ({ ...prev, activeSheetId: sheetId }));
+  };
+
+  const handleAddSheet = () => {
+    const nextNum = workbookData.sheets.length + 1;
+    const newSheet = createNewSheet(nextNum);
+    setWorkbookData((prev) => ({
+      activeSheetId: newSheet.id,
+      sheets: [...prev.sheets, newSheet],
+    }));
+  };
+
+  const handleRenameSheet = (sheetId: string, newTitle: string) => {
+    setWorkbookData((prev) => ({
+      ...prev,
+      sheets: prev.sheets.map((s) => (s.id === sheetId ? { ...s, title: newTitle } : s)),
+    }));
+  };
+
+  const handleDeleteSheet = (sheetId: string) => {
+    if (workbookData.sheets.length <= 1) {
+      alert('Cannot delete the only remaining worksheet.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this worksheet?')) return;
+
+    const filtered = workbookData.sheets.filter((s) => s.id !== sheetId);
+    const newActiveId = workbookData.activeSheetId === sheetId ? filtered[0].id : workbookData.activeSheetId;
+
+    setWorkbookData({
+      activeSheetId: newActiveId,
+      sheets: filtered,
+    });
+  };
+
+  const handleUpdateActiveSheet = (updatedSheet: SheetData) => {
+    setWorkbookData((prev) => ({
+      ...prev,
+      sheets: prev.sheets.map((s) => (s.id === updatedSheet.id ? updatedSheet : s)),
+    }));
   };
 
   const handleWidgetCreated = (newWidget: DashboardWidget) => {
     setWidgets((prev) => [newWidget, ...prev]);
-    setActiveTab('dashboard'); // Auto switch to Dashboard tab so user sees the new chart!
+    setActiveTab('dashboard');
   };
 
   const handleRowsUpdated = (updatedRows: any[]) => {
-    setSheetData((prev) => ({ ...prev, rows: updatedRows }));
+    handleUpdateActiveSheet({ ...activeSheet, rows: updatedRows });
   };
 
   const handleExportPdf = () => {
     setActiveTab('dashboard');
     setTimeout(() => {
-      ExportService.exportDashboardToPdf('dashboard-print-container', sheetData.title || 'Analytics_Dashboard');
+      ExportService.exportDashboardToPdf('dashboard-print-container', activeSheet.title || 'Analytics_Dashboard');
     }, 300);
   };
 
   const handleResetData = () => {
-    const { sheetData: defaultSheet, widgets: defaultWidgets } = StorageService.resetToDefault();
-    setSheetData(defaultSheet);
+    const { workbookData: defaultWorkbook, widgets: defaultWidgets } = StorageService.resetToDefault();
+    setWorkbookData(defaultWorkbook);
     setWidgets(defaultWidgets);
     setHighlightCondition(null);
   };
 
   const handleAddSamplePieChart = () => {
-    const firstColKey = sheetData.columns[0]?.key || 'a';
-    const numColKey = sheetData.columns.find((c) => c.key !== firstColKey)?.key || sheetData.columns[1]?.key || 'b';
+    const firstColKey = activeSheet.columns[0]?.key || 'a';
+    const numColKey = activeSheet.columns.find((c) => c.key !== firstColKey)?.key || activeSheet.columns[1]?.key || 'b';
 
     const pieWidget: DashboardWidget = {
       id: `widget-pie-${Date.now()}`,
@@ -88,8 +135,8 @@ export const App: React.FC = () => {
   };
 
   const handleAddSampleBarChart = () => {
-    const firstColKey = sheetData.columns[0]?.key || 'a';
-    const numColKey = sheetData.columns.find((c) => c.key !== firstColKey)?.key || sheetData.columns[1]?.key || 'b';
+    const firstColKey = activeSheet.columns[0]?.key || 'a';
+    const numColKey = activeSheet.columns.find((c) => c.key !== firstColKey)?.key || activeSheet.columns[1]?.key || 'b';
 
     const barWidget: DashboardWidget = {
       id: `widget-bar-${Date.now()}`,
@@ -108,7 +155,7 @@ export const App: React.FC = () => {
   // --- CELL FORMATTING RIBBON HANDLERS ---
   const updateActiveCellStyle = (styleModifier: (existingStyle: any) => any) => {
     const { rowIndex, colKey } = activeCellLocation;
-    const newRows = [...sheetData.rows];
+    const newRows = [...activeSheet.rows];
     if (!newRows[rowIndex]) return;
 
     const currentCell = newRows[rowIndex][colKey] || { raw: '' };
@@ -122,7 +169,7 @@ export const App: React.FC = () => {
       },
     };
 
-    setSheetData({ ...sheetData, rows: newRows });
+    handleUpdateActiveSheet({ ...activeSheet, rows: newRows });
   };
 
   const handleToggleBold = () => {
@@ -155,7 +202,7 @@ export const App: React.FC = () => {
 
   const handleSetFormat = (type: 'currency' | 'percent') => {
     const { rowIndex, colKey } = activeCellLocation;
-    const newRows = [...sheetData.rows];
+    const newRows = [...activeSheet.rows];
     if (!newRows[rowIndex]) return;
 
     const currentCell = newRows[rowIndex][colKey] || { raw: '' };
@@ -178,12 +225,12 @@ export const App: React.FC = () => {
       },
     };
 
-    setSheetData({ ...sheetData, rows: newRows });
+    handleUpdateActiveSheet({ ...activeSheet, rows: newRows });
   };
 
   const handleAutoSum = () => {
     const { rowIndex, colKey } = activeCellLocation;
-    const newRows = [...sheetData.rows];
+    const newRows = [...activeSheet.rows];
     if (!newRows[rowIndex]) return;
 
     newRows[rowIndex] = {
@@ -194,7 +241,7 @@ export const App: React.FC = () => {
       },
     };
 
-    setSheetData({ ...sheetData, rows: newRows });
+    handleUpdateActiveSheet({ ...activeSheet, rows: newRows });
   };
 
   return (
@@ -203,9 +250,9 @@ export const App: React.FC = () => {
       <HeaderToolbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        sheetData={sheetData}
+        sheetData={activeSheet}
         onImport={(imported) => {
-          setSheetData(imported);
+          handleUpdateActiveSheet(imported);
           setActiveTab('sheet');
         }}
         onExportPdf={handleExportPdf}
@@ -229,10 +276,16 @@ export const App: React.FC = () => {
         <main className="flex-1 p-4 overflow-auto">
           {activeTab === 'sheet' ? (
             <SpreadsheetGrid
-              sheetData={sheetData}
-              onUpdateSheetData={handleUpdateSheetData}
+              sheetData={activeSheet}
+              sheets={workbookData.sheets}
+              activeSheetId={workbookData.activeSheetId}
+              onSelectSheet={handleSelectSheet}
+              onAddSheet={handleAddSheet}
+              onRenameSheet={handleRenameSheet}
+              onDeleteSheet={handleDeleteSheet}
+              onUpdateSheetData={handleUpdateActiveSheet}
               onImport={(imported) => {
-                setSheetData(imported);
+                handleUpdateActiveSheet(imported);
                 setActiveTab('sheet');
               }}
               onSelectCell={setActiveCellLocation}
@@ -240,7 +293,7 @@ export const App: React.FC = () => {
             />
           ) : (
             <DashboardView
-              sheetData={sheetData}
+              sheetData={activeSheet}
               widgets={widgets}
               onUpdateWidgets={setWidgets}
               onAddSamplePieChart={handleAddSamplePieChart}
@@ -250,7 +303,7 @@ export const App: React.FC = () => {
 
         {/* AI Copilot Side Prompt Panel */}
         <AiSidebar
-          sheetData={sheetData}
+          sheetData={activeSheet}
           widgets={widgets}
           apiKey={settings.geminiApiKey}
           onWidgetCreated={handleWidgetCreated}

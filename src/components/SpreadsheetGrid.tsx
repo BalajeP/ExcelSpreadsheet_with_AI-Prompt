@@ -1,9 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { SheetData, GridRow, ColumnMeta } from '../types';
-import { Plus, Trash2, Search, Check } from 'lucide-react';
+import { Plus, Trash2, Search, Check, X } from 'lucide-react';
 
 interface SpreadsheetGridProps {
   sheetData: SheetData;
+  sheets: SheetData[];
+  activeSheetId: string;
+  onSelectSheet: (sheetId: string) => void;
+  onAddSheet: () => void;
+  onRenameSheet: (sheetId: string, newTitle: string) => void;
+  onDeleteSheet: (sheetId: string) => void;
   onUpdateSheetData: (updatedSheet: SheetData) => void;
   onImport?: (importedSheet: SheetData) => void;
   onSelectCell?: (cellInfo: { rowIndex: number; colKey: string; style?: any; raw?: string | number }) => void;
@@ -17,6 +23,12 @@ interface SpreadsheetGridProps {
 
 export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sheetData,
+  sheets,
+  activeSheetId,
+  onSelectSheet,
+  onAddSheet,
+  onRenameSheet,
+  onDeleteSheet,
   onUpdateSheetData,
   onSelectCell,
   highlightCondition,
@@ -42,6 +54,19 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // Column Header Editing State
   const [editingColKey, setEditingColKey] = useState<string | null>(null);
   const [editColLabel, setEditColLabel] = useState('');
+
+  // Sheet Tab Renaming State
+  const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
+  const [editSheetTitle, setEditSheetTitle] = useState('');
+
+  // Reset selected cell if active sheet changes
+  useEffect(() => {
+    setSelectedCell({
+      rowIndex: 0,
+      colKey: sheetData.columns[0]?.key || 'a',
+    });
+    setEditingCell(null);
+  }, [sheetData.id]);
 
   // Selected cell address label (e.g. A1, B2)
   const activeColMeta = sheetData.columns.find((c) => c.key === selectedCell.colKey);
@@ -81,7 +106,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Handle Keyboard Navigation (Tab, Enter, Shift+Tab, Shift+Enter, Arrow Keys)
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (editingCell) return; // Don't intercept arrow keys while editing inside input
+    if (editingCell) return;
 
     const numRows = sheetData.rows.length;
     const numCols = sheetData.columns.length;
@@ -91,11 +116,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       e.preventDefault();
       setSelectionMode('cell');
       if (e.shiftKey) {
-        // Shift + Tab -> Move Left
         const prevColIndex = Math.max(0, currentColIndex - 1);
         setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[prevColIndex].key });
       } else {
-        // Tab -> Move Right
         const nextColIndex = Math.min(numCols - 1, currentColIndex + 1);
         setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[nextColIndex].key });
       }
@@ -103,11 +126,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       e.preventDefault();
       setSelectionMode('cell');
       if (e.shiftKey) {
-        // Shift + Enter -> Move Up
         const prevRowIndex = Math.max(0, selectedCell.rowIndex - 1);
         setSelectedCell({ rowIndex: prevRowIndex, colKey: selectedCell.colKey });
       } else {
-        // Enter -> Move Down
         const nextRowIndex = Math.min(numRows - 1, selectedCell.rowIndex + 1);
         setSelectedCell({ rowIndex: nextRowIndex, colKey: selectedCell.colKey });
       }
@@ -215,6 +236,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       columns: updatedCols,
       rows: updatedRows,
     });
+  };
+
+  // Save Sheet Rename
+  const handleSaveSheetTitle = (sheetId: string) => {
+    if (editSheetTitle.trim()) {
+      onRenameSheet(sheetId, editSheetTitle.trim());
+    }
+    setEditingSheetId(null);
   };
 
   // Evaluate cell values (formulas vs raw)
@@ -331,14 +360,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         <div className="flex items-center gap-1.5 ml-2">
           <button
             onClick={handleAddRow}
-            className="flex items-center gap-1 px-2.5 py-1 bg-[#107c41] hover:bg-[#0e6e39] text-white text-[11px] font-semibold rounded shadow-sm transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-[#107c41] hover:bg-[#0e6e39] text-white text-[11px] font-semibold rounded shadow-sm transition cursor-pointer"
           >
             <Plus className="w-3 h-3" />
             Row
           </button>
           <button
             onClick={handleAddColumn}
-            className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold rounded border border-slate-300 transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold rounded border border-slate-300 transition cursor-pointer"
           >
             <Plus className="w-3 h-3 text-slate-600" />
             Col
@@ -440,7 +469,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
               return (
                 <tr key={rowIndex} className="hover:bg-[#f5f5f5] transition-colors group">
-                  {/* Row Number Header (1, 2, 3...) - Click selects entire row! */}
+                  {/* Row Number Header (1, 2, 3...) */}
                   <td
                     onClick={() => handleSelectRow(rowIndex)}
                     className={`w-10 px-2 py-1 text-center font-mono text-[11px] border-r border-[#d4d4d4] select-none cursor-pointer transition ${
@@ -537,19 +566,85 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         </table>
       </div>
 
-      {/* 3. Excel Bottom Status Bar (Sheet1, +, Ready, Zoom) */}
-      <div className="px-3 py-1 bg-[#f3f3f3] border-t border-[#d4d4d4] text-[11px] text-slate-600 flex items-center justify-between select-none">
-        <div className="flex items-center gap-3">
-          {/* Active Sheet Tab */}
-          <div className="flex items-center bg-white border-t-2 border-t-[#107c41] border-x border-[#d4d4d4] px-3 py-0.5 font-bold text-[#107c41] text-[11px]">
-            Sheet1
-          </div>
-          <button onClick={handleAddColumn} className="p-0.5 hover:bg-slate-200 rounded text-slate-500" title="Add Sheet">
-            <Plus className="w-3.5 h-3.5" />
+      {/* 3. Excel Multi-Worksheet Bottom Tabs (Sheet1, Sheet2... [+] Add New Sheet) */}
+      <div className="px-2 py-1 bg-[#f3f3f3] border-t border-[#d4d4d4] text-[11px] text-slate-600 flex items-center justify-between select-none overflow-x-auto">
+        <div className="flex items-center gap-1">
+          {/* List of Worksheets */}
+          {sheets.map((s) => {
+            const isActive = s.id === activeSheetId;
+            const isEditingThisSheet = editingSheetId === s.id;
+
+            return (
+              <div
+                key={s.id}
+                onClick={() => onSelectSheet(s.id)}
+                className={`group flex items-center gap-1.5 px-3 py-1 text-[11px] cursor-pointer transition border-x border-[#d4d4d4] ${
+                  isActive
+                    ? 'bg-white border-t-2 border-t-[#107c41] font-bold text-[#107c41] shadow-xs'
+                    : 'bg-[#e6e6e6] hover:bg-white text-slate-700 font-medium'
+                }`}
+              >
+                {isEditingThisSheet ? (
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editSheetTitle}
+                      onChange={(e) => setEditSheetTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveSheetTitle(s.id);
+                        if (e.key === 'Escape') setEditingSheetId(null);
+                      }}
+                      className="w-20 bg-white text-slate-900 border border-[#107c41] px-1 py-0.5 text-[11px] outline-none"
+                    />
+                    <button
+                      onClick={() => handleSaveSheetTitle(s.id)}
+                      className="text-emerald-700 hover:text-emerald-800 p-0.5"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <span
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setEditingSheetId(s.id);
+                      setEditSheetTitle(s.title);
+                    }}
+                    title="Click to switch, double-click to rename sheet"
+                  >
+                    {s.title}
+                  </span>
+                )}
+
+                {/* Delete Sheet button (if more than 1 sheet) */}
+                {sheets.length > 1 && !isEditingThisSheet && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteSheet(s.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 p-0.5 transition"
+                    title={`Delete ${s.title}`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Plus (+) Button to Create Sheet2, Sheet3, etc. */}
+          <button
+            onClick={onAddSheet}
+            className="flex items-center justify-center w-6 h-6 ml-1 bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-700 rounded transition cursor-pointer shadow-xs active:scale-95"
+            title="Create New Worksheet (Sheet2, Sheet3...)"
+          >
+            <Plus className="w-3.5 h-3.5 text-slate-800" />
           </button>
         </div>
 
-        <div className="flex items-center gap-4 text-[11px] text-slate-500">
+        <div className="flex items-center gap-4 text-[11px] text-slate-500 ml-4">
           <span>Ready</span>
           <span>100%</span>
         </div>
