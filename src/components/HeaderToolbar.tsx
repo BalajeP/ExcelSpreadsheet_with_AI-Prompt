@@ -138,22 +138,22 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
 
   return (
     <header className="flex flex-col bg-[#107c41] text-white border-b border-[#0b5c30] shadow-md select-text relative">
-      {/* 1. Top Green Excel Ribbon Menu Bar (File, Home, Insert) */}
-      <div className="flex items-center px-2 bg-[#107c41] text-white text-xs overflow-x-auto scrollbar-none">
+      {/* 1. Top Green Excel Ribbon Menu Bar (Expanded Height as Requested) */}
+      <div className="flex items-center px-3 py-2 bg-[#107c41] text-white text-xs overflow-x-auto scrollbar-none min-h-[46px]">
         {/* File Backstage Menu Trigger */}
         <button
           onClick={() => setIsFileMenuOpen(true)}
-          className="px-3 py-1 bg-[#0b5c30] font-bold text-white uppercase tracking-wider text-[11px] hover:bg-[#084825] flex items-center gap-1 transition cursor-pointer"
+          className="px-3.5 py-1.5 bg-[#0b5c30] font-bold text-white uppercase tracking-wider text-[11px] hover:bg-[#084825] flex items-center gap-1.5 transition cursor-pointer rounded-xs"
         >
-          <Save className="w-3 h-3 text-emerald-300" />
-          File
+          <Save className="w-3.5 h-3.5 text-emerald-300" />
+          FILE
         </button>
 
         <button
           onClick={() => setActiveMenu('Home')}
-          className={`px-3 py-1 font-semibold text-[11px] transition ${
+          className={`px-3.5 py-1.5 font-semibold text-[11px] transition ${
             activeMenu === 'Home'
-              ? 'bg-slate-100 text-[#107c41] rounded-t shadow-sm font-bold'
+              ? 'bg-slate-100 text-[#107c41] rounded-t-md shadow-sm font-extrabold'
               : 'hover:bg-emerald-700/80 text-white'
           }`}
         >
@@ -162,9 +162,9 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
 
         <button
           onClick={() => setActiveMenu('Insert')}
-          className={`px-3 py-1 font-semibold text-[11px] transition ${
+          className={`px-3.5 py-1.5 font-semibold text-[11px] transition ${
             activeMenu === 'Insert'
-              ? 'bg-slate-100 text-[#107c41] rounded-t shadow-sm font-bold'
+              ? 'bg-slate-100 text-[#107c41] rounded-t-md shadow-sm font-extrabold'
               : 'hover:bg-emerald-700/80 text-white'
           }`}
         >
@@ -177,12 +177,40 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           <span className="hidden sm:inline">Tell me what you want to do...</span>
         </div>
 
-        {/* Navigation & Action Triggers right inside Ribbon menu */}
-        <div className="ml-auto flex items-center gap-1.5 py-0.5">
+        {/* Grid View & Dashboard View Placed Right Inside Expanded Top Green Bar! */}
+        <div className="ml-auto flex items-center gap-2 py-0.5">
+          {/* Grid View Button */}
+          <button
+            onClick={() => setActiveTab('sheet')}
+            className={`px-3 py-1 rounded text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              activeTab === 'sheet'
+                ? 'bg-white text-[#107c41] shadow-md ring-2 ring-emerald-300'
+                : 'bg-[#0b5c30] hover:bg-[#084825] text-emerald-100 border border-emerald-600/50'
+            }`}
+            title="Switch to Spreadsheet Grid View"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Grid View
+          </button>
+
+          {/* Dashboard View Button */}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-3 py-1 rounded text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              activeTab === 'dashboard'
+                ? 'bg-white text-indigo-700 shadow-md ring-2 ring-indigo-300'
+                : 'bg-[#0b5c30] hover:bg-[#084825] text-emerald-100 border border-emerald-600/50'
+            }`}
+            title="Switch to Executive Analytics Dashboard View"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400" />
+            Dashboard
+          </button>
+
           {/* RESET Button */}
           <button
             onClick={onResetData}
-            className="flex items-center gap-1 px-2.5 py-0.5 bg-rose-700 hover:bg-rose-800 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1 bg-rose-700 hover:bg-rose-800 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer ml-1"
             title="Reset Sheet to Original State"
           >
             <RefreshCw className="w-3 h-3" />
@@ -190,7 +218,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           </button>
 
           {/* Import File Button */}
-          <label className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-semibold rounded cursor-pointer transition shadow-sm">
+          <label className="flex items-center gap-1 px-3 py-1 bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-semibold rounded cursor-pointer transition shadow-sm">
             <FileUp className="w-3 h-3" />
             Import
             <input
@@ -204,7 +232,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           {/* Export Excel Button */}
           <button
             onClick={() => ExportService.exportToExcel(sheetData)}
-            className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-900 hover:bg-emerald-950 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1 bg-emerald-900 hover:bg-emerald-950 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
             title="Export Excel .xlsx"
           >
             <Download className="w-3 h-3" />
@@ -214,7 +242,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           {/* Export PDF Button */}
           <button
             onClick={onExportPdf}
-            className="flex items-center gap-1 px-2.5 py-0.5 bg-purple-700 hover:bg-purple-800 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1 bg-purple-700 hover:bg-purple-800 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
             title="Export PDF"
           >
             <FileText className="w-3 h-3" />
@@ -225,7 +253,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           {!isAppInstalled && (
             <button
               onClick={handleInstallPwa}
-              className="flex items-center gap-1 px-2.5 py-0.5 bg-pink-600 hover:bg-pink-700 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1 bg-pink-600 hover:bg-pink-700 text-white text-[11px] font-semibold rounded transition shadow-sm cursor-pointer"
               title="Install App Icon"
             >
               <DownloadCloud className="w-3 h-3" />
@@ -236,7 +264,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           {/* Settings */}
           <button
             onClick={onOpenSettings}
-            className="p-1 hover:bg-emerald-700 rounded transition text-white cursor-pointer"
+            className="p-1 hover:bg-emerald-700 rounded transition text-white cursor-pointer ml-0.5"
             title="Settings"
           >
             <SettingsIcon className="w-3.5 h-3.5" />
@@ -396,8 +424,8 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             </button>
           </div>
 
-          {/* Editing / AutoSum Group & View Switcher (Grid View & Dashboard right next to AutoSum in this row!) */}
-          <div className="flex items-center gap-2">
+          {/* Editing / AutoSum Group */}
+          <div className="flex items-center gap-1">
             <button
               onClick={onAutoSum}
               className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-slate-800 font-semibold text-[11px] transition cursor-pointer border border-slate-300"
@@ -406,35 +434,6 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
               <Sigma className="w-3.5 h-3.5 text-emerald-700" />
               AutoSum
             </button>
-
-            {/* Grid View & Dashboard View right next to AutoSum! */}
-            <div className="flex items-center gap-1 border-l border-slate-300 pl-2">
-              <button
-                onClick={() => setActiveTab('sheet')}
-                className={`px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                  activeTab === 'sheet'
-                    ? 'bg-[#107c41] text-white shadow-xs'
-                    : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300'
-                }`}
-                title="Switch to Spreadsheet Grid View"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                Grid View
-              </button>
-
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                  activeTab === 'dashboard'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300'
-                }`}
-                title="Switch to Executive Analytics Dashboard"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 text-indigo-500" />
-                Dashboard View
-              </button>
-            </div>
           </div>
         </div>
       ) : (
