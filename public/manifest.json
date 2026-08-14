@@ -1,0 +1,23 @@
+{
+  "short_name": "SheetAI",
+  "name": "SheetAI Copilot - AI Spreadsheet & Dashboard Generator",
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#030712",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "any",
+  "description": "Smart Excel Spreadsheet & AI Dashboard Generator with natural language prompt customization, live pie charts, and Excel/PDF exports."
+}
