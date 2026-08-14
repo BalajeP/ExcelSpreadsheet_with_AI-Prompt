@@ -5,9 +5,10 @@ import {
   Sparkles, 
   CheckCircle2, 
   X, 
-  ChevronRight,
-  Lightbulb,
-  Zap
+  Zap,
+  Copy,
+  Check,
+  Edit3
 } from 'lucide-react';
 import type { AiChatMessage, SheetData, DashboardWidget } from '../types';
 import { AiEngine } from '../services/aiEngine';
@@ -32,6 +33,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
 }) => {
   const [promptInput, setPromptInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<AiChatMessage[]>([
     {
       id: 'init-1',
@@ -41,13 +43,15 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     },
   ]);
 
-  const quickPrompts = [
-    { label: '🥧 Circular Pie Chart (Data1 & Count)', text: 'create a circular pie chart from the data of column Data1 and Count' },
-    { label: '📊 Bar Chart (Category & Count)', text: 'create a bar chart comparing Count across Categories' },
-    { label: '➕ Add QA Record (Test Case A, Count 15)', text: 'add a new row with Date 2026-08-15, Category Functionality, Data1 Test Case A, Count 15, Status Passed' },
-    { label: '🟢 Highlight Count > 100', text: 'highlight all rows where count is greater than 100' },
-    { label: '📈 Total Count KPI Card', text: 'create a total count KPI summary card' },
-  ];
+  const handleCopyPrompt = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleEditPrompt = (text: string) => {
+    setPromptInput(text);
+  };
 
   const handleSendPrompt = async (textToSend?: string) => {
     const text = textToSend || promptInput;
@@ -124,36 +128,15 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
         )}
       </div>
 
-      {/* Quick Prompt Chips */}
-      <div className="p-3 bg-slate-950/60 border-b border-slate-800/80">
-        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-          <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-          One-Click AI Prompts
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {quickPrompts.map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSendPrompt(item.text)}
-              disabled={isProcessing}
-              className="text-left px-2.5 py-1.5 rounded-lg bg-slate-800/60 hover:bg-indigo-600/20 hover:border-indigo-500/40 border border-slate-700/50 text-[11px] text-slate-300 font-medium transition flex items-center justify-between group disabled:opacity-50"
-            >
-              <span className="truncate">{item.label}</span>
-              <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-indigo-400 transition" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat Messages */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 scrollbar-thin">
+      {/* Chat Messages Log */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4 scrollbar-thin">
         {chatHistory.map((msg) => (
           <div
             key={msg.id}
-            className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+            className={`flex flex-col group ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div
-              className={`max-w-[88%] p-3 rounded-2xl text-xs leading-relaxed ${
+              className={`max-w-[88%] p-3 rounded-2xl text-xs leading-relaxed relative ${
                 msg.sender === 'user'
                   ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-none shadow-md'
                   : 'bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm font-medium'
@@ -173,7 +156,40 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
                 </div>
               )}
             </div>
-            <span className="text-[10px] text-slate-500 mt-1 px-1">{msg.timestamp}</span>
+
+            {/* Message Action Toolbar (Copy & Edit/Re-use) */}
+            <div className="flex items-center gap-2 mt-1 px-1 text-[10px] text-slate-500">
+              <span>{msg.timestamp}</span>
+
+              <button
+                onClick={() => handleCopyPrompt(msg.id, msg.text)}
+                className="hover:text-indigo-300 transition flex items-center gap-0.5"
+                title="Copy text to clipboard"
+              >
+                {copiedId === msg.id ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span className="text-emerald-400">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+
+              {msg.sender === 'user' && (
+                <button
+                  onClick={() => handleEditPrompt(msg.text)}
+                  className="hover:text-indigo-300 transition flex items-center gap-0.5"
+                  title="Edit or re-use prompt"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>Edit</span>
+                </button>
+              )}
+            </div>
           </div>
         ))}
 
@@ -185,7 +201,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
         )}
       </div>
 
-      {/* Input Form */}
+      {/* Prompt Input Form */}
       <div className="p-3 border-t border-slate-800 bg-slate-900/90">
         <form
           onSubmit={(e) => {

@@ -128,6 +128,16 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
 
       {/* Action Buttons */}
       <div className="flex items-center flex-wrap gap-2">
+        {/* RESET Button (Placed before Import button) */}
+        <button
+          onClick={onResetData}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-xs font-semibold rounded-lg border border-rose-500/30 transition"
+          title="Reset Spreadsheet & Dashboard"
+        >
+          <RefreshCw className="w-3.5 h-3.5 text-rose-400" />
+          RESET
+        </button>
+
         {/* Import File */}
         <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition cursor-pointer">
           <FileUp className="w-3.5 h-3.5 text-indigo-400" />
@@ -171,15 +181,6 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             Install App Icon
           </button>
         )}
-
-        {/* Reset Sample Data */}
-        <button
-          onClick={onResetData}
-          className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition"
-          title="Reset Spreadsheet"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
 
         {/* Settings Button */}
         <button
