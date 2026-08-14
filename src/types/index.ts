@@ -61,6 +61,7 @@ export interface AiChatMessage {
   timestamp: string;
   actionTaken?: string;
   widgetCreated?: DashboardWidget;
+  imageUrl?: string;
 }
 
 export interface AiActionResponse {

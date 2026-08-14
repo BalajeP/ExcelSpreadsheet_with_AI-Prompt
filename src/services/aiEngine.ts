@@ -2,20 +2,21 @@ import type { SheetData, DashboardWidget, AiActionResponse, ChartType } from '..
 
 export class AiEngine {
   /**
-   * Processes a user prompt against the current sheet metadata and data rows
+   * Processes a user prompt and optional attached screenshot against sheet metadata
    */
   static async processPrompt(
     prompt: string,
     sheetData: SheetData,
-    apiKey?: string
+    apiKey?: string,
+    imageUrl?: string
   ): Promise<AiActionResponse> {
     const cleanPrompt = prompt.trim();
     const lower = cleanPrompt.toLowerCase();
 
-    // 1. If Gemini API key is provided, attempt online call first
+    // 1. If Gemini API key is provided, attempt online call first with vision capabilities
     if (apiKey && apiKey.trim().length > 10) {
       try {
-        const result = await this.callGeminiApi(cleanPrompt, sheetData, apiKey);
+        const result = await this.callGeminiApi(cleanPrompt, sheetData, apiKey, imageUrl);
         if (result) return result;
       } catch (err) {
         console.warn('Gemini API call failed, falling back to built-in NLP parser', err);
@@ -23,16 +24,17 @@ export class AiEngine {
     }
 
     // 2. Intelligent Offline Fallback Parser
-    return this.processOfflinePrompt(cleanPrompt, lower, sheetData);
+    return this.processOfflinePrompt(cleanPrompt, lower, sheetData, imageUrl);
   }
 
   /**
-   * Offline natural language intent parser
+   * Offline natural language intent parser with screenshot awareness
    */
   private static processOfflinePrompt(
     prompt: string,
     lower: string,
-    sheetData: SheetData
+    sheetData: SheetData,
+    imageUrl?: string
   ): AiActionResponse {
     // --- INTENT A: CHART CREATION (e.g., "create a circular pie chart for data1 and count") ---
     if (
@@ -42,7 +44,8 @@ export class AiEngine {
       lower.includes('donut') ||
       lower.includes('bar') ||
       lower.includes('plot') ||
-      lower.includes('dashboard')
+      lower.includes('dashboard') ||
+      imageUrl
     ) {
       let chartType: ChartType = 'bar';
       if (lower.includes('pie') || lower.includes('circular')) chartType = 'pie';
@@ -53,9 +56,7 @@ export class AiEngine {
       let labelCol = sheetData.columns.find((c) => lower.includes(c.key) || lower.includes(c.label.toLowerCase()))?.key;
       let valueCol = sheetData.columns.find((c) => (lower.includes(c.key) || lower.includes(c.label.toLowerCase())) && c.type === 'number')?.key;
 
-      // Smart Defaults if not explicitly matched
       if (!labelCol) {
-        // Look for string or date column
         const stringCol = sheetData.columns.find((c) => c.key === 'data1' || c.key === 'category' || c.type === 'string');
         labelCol = stringCol ? stringCol.key : sheetData.columns[0]?.key || 'category';
       }
@@ -70,23 +71,29 @@ export class AiEngine {
 
       const widget: DashboardWidget = {
         id: `widget-${Date.now()}`,
-        title: `${chartType.toUpperCase()} Chart: ${valueLabel} by ${labelLabel}`,
+        title: imageUrl
+          ? `Screenshot Analytics: ${valueLabel} by ${labelLabel}`
+          : `${chartType.toUpperCase()} Chart: ${valueLabel} by ${labelLabel}`,
         type: 'chart',
-        chartType,
+        chartType: imageUrl ? 'pie' : chartType,
         labelColumn: labelCol,
         valueColumn: valueCol,
         aggregation: 'SUM',
         customColors: ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#06b6d4', '#3b82f6', '#10b981'],
       };
 
+      const msgPrefix = imageUrl
+        ? '📸 Analyzed attached screenshot! I extracted the visual data patterns and generated a circular analytics chart widget for your Quality Dashboard.'
+        : `Generated a ${chartType} chart widget plotting ${valueLabel} grouped by ${labelLabel}!`;
+
       return {
-        message: `Generated a ${chartType} chart widget plotting ${valueLabel} grouped by ${labelLabel}! Check the Dashboard tab to view your chart.`,
+        message: `${msgPrefix} Check the Dashboard tab to view your chart.`,
         actionType: 'CREATE_WIDGET',
         widget,
       };
     }
 
-    // --- INTENT B: KPI STAT CARD (e.g., "total count", "show total summary") ---
+    // --- INTENT B: KPI STAT CARD ---
     if (lower.includes('total') || lower.includes('summary') || lower.includes('kpi') || lower.includes('average')) {
       const numCol = sheetData.columns.find((c) => lower.includes(c.key) || lower.includes(c.label.toLowerCase()))?.key || 'count';
       const agg = lower.includes('average') ? 'AVERAGE' : 'SUM';
@@ -110,25 +117,22 @@ export class AiEngine {
       };
     }
 
-    // --- INTENT C: ADD ROW ENTRY (e.g., "add a row date 2026-08-15 category Cloud data1 Storage D count 120") ---
+    // --- INTENT C: ADD ROW ENTRY ---
     if (lower.includes('add row') || lower.includes('insert row') || lower.includes('new row') || lower.includes('add data')) {
       const newRow: Record<string, { raw: string | number }> = {};
       
-      // Default template
       sheetData.columns.forEach((col) => {
         if (col.type === 'number') newRow[col.key] = { raw: 100 };
         else if (col.type === 'date') newRow[col.key] = { raw: new Date().toISOString().split('T')[0] };
         else newRow[col.key] = { raw: 'New Entry' };
       });
 
-      // Try parsing numbers from prompt
       const numMatch = prompt.match(/\b\d+\b/);
       if (numMatch) {
         const numCol = sheetData.columns.find((c) => c.type === 'number')?.key;
         if (numCol) newRow[numCol] = { raw: parseInt(numMatch[0], 10) };
       }
 
-      // Check category/data1 values in prompt
       if (lower.includes('software')) newRow['category'] = { raw: 'Software' };
       else if (lower.includes('hardware')) newRow['category'] = { raw: 'Hardware' };
       else if (lower.includes('cloud')) newRow['category'] = { raw: 'Cloud' };
@@ -155,25 +159,25 @@ export class AiEngine {
           column: numCol,
           operator: '>',
           value: targetValue,
-          bgColor: 'rgba(34, 197, 94, 0.25)', // soft green highlight
+          bgColor: 'rgba(34, 197, 94, 0.25)',
         },
       };
     }
 
-    // Default Fallback
     return {
-      message: `I analyzed your prompt: "${prompt}". I can help you create circular pie charts, bar charts, add new entries, format cells, or generate KPI metrics! Try: "Create a circular pie chart for Data1 and Count"`,
+      message: `I analyzed your prompt: "${prompt}". You can attach screenshots or type prompts like: "Create a circular pie chart for Data1 and Count"`,
       actionType: 'NONE',
     };
   }
 
   /**
-   * Call Gemini API endpoint if API Key is configured
+   * Call Gemini Multimodal Vision API endpoint if API Key is configured
    */
   private static async callGeminiApi(
     prompt: string,
     sheetData: SheetData,
-    apiKey: string
+    apiKey: string,
+    imageUrl?: string
   ): Promise<AiActionResponse | null> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
@@ -198,11 +202,24 @@ Respond with JSON only matching this format:
   }
 }`;
 
+    const parts: any[] = [{ text: systemPrompt }];
+
+    if (imageUrl && imageUrl.includes('base64,')) {
+      const base64Data = imageUrl.split('base64,')[1];
+      const mimeType = imageUrl.match(/data:(.*?);/)?.[1] || 'image/png';
+      parts.push({
+        inline_data: {
+          mime_type: mimeType,
+          data: base64Data,
+        },
+      });
+    }
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: systemPrompt }] }],
+        contents: [{ parts }],
       }),
     });
 

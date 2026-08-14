@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Bot, 
   Send, 
@@ -9,7 +9,9 @@ import {
   Copy,
   Check,
   Edit3,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import type { AiChatMessage, SheetData, DashboardWidget } from '../types';
 import { AiEngine } from '../services/aiEngine';
@@ -32,7 +34,9 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
   onHighlightCondition,
   onClose,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [promptInput, setPromptInput] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -44,10 +48,23 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     {
       id: 'init-1',
       sender: 'ai',
-      text: 'Hello Sankari (Quality Analyst)! Welcome to Quality Dashboard.\n\nHow can I help you today?',
+      text: 'Hello Sankari (Quality Analyst)! Welcome to Quality Dashboard.\n\nHow can I help you today? You can type prompts or attach screenshots!',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setSelectedImage(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleCopyPrompt = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -59,6 +76,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     setEditingMsgId(msg.id);
     setEditingMsgText(msg.text);
     setPromptInput(msg.text);
+    if (msg.imageUrl) setSelectedImage(msg.imageUrl);
   };
 
   const handleSaveInlineEdit = async (msgId: string) => {
@@ -73,7 +91,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
     setIsProcessing(true);
 
     try {
-      const response = await AiEngine.processPrompt(updatedText, sheetData, apiKey);
+      const response = await AiEngine.processPrompt(updatedText, sheetData, apiKey, selectedImage || undefined);
 
       if (response.actionType === 'CREATE_WIDGET' && response.widget) {
         onWidgetCreated(response.widget);
@@ -104,26 +122,32 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
       ]);
     } finally {
       setIsProcessing(false);
+      setSelectedImage(null);
     }
   };
 
   const handleSendPrompt = async (textToSend?: string) => {
     const text = textToSend || promptInput;
-    if (!text.trim() || isProcessing) return;
+    if ((!text.trim() && !selectedImage) || isProcessing) return;
+
+    const currentImage = selectedImage;
+    const finalPromptText = text.trim() || (currentImage ? 'Analyze attached screenshot and generate dashboard widget' : '');
 
     const userMsg: AiChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
-      text,
+      text: finalPromptText,
+      imageUrl: currentImage || undefined,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setChatHistory((prev) => [...prev, userMsg]);
     if (!textToSend) setPromptInput('');
+    setSelectedImage(null);
     setIsProcessing(true);
 
     try {
-      const response = await AiEngine.processPrompt(text, sheetData, apiKey);
+      const response = await AiEngine.processPrompt(finalPromptText, sheetData, apiKey, currentImage || undefined);
 
       if (response.actionType === 'CREATE_WIDGET' && response.widget) {
         onWidgetCreated(response.widget);
@@ -170,7 +194,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
               Quality AI Copilot
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
             </h3>
-            <p className="text-[11px] text-slate-400 select-text">Quality Analyst natural language assistant</p>
+            <p className="text-[11px] text-slate-400 select-text">Natural language & screenshot assistant</p>
           </div>
         </div>
 
@@ -198,6 +222,17 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
                     : 'bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm font-medium'
                 }`}
               >
+                {/* Attached Screenshot Image Display in Chat */}
+                {msg.imageUrl && (
+                  <div className="mb-2 overflow-hidden rounded-xl border border-indigo-400/40 shadow-sm">
+                    <img
+                      src={msg.imageUrl}
+                      alt="Attached Screenshot"
+                      className="max-h-48 w-full object-cover rounded-xl hover:scale-105 transition"
+                    />
+                  </div>
+                )}
+
                 {isInlineEditing ? (
                   <div className="flex flex-col gap-2 w-full min-w-[240px]">
                     <textarea
@@ -281,13 +316,39 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
         {isProcessing && (
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-medium p-2.5 bg-indigo-500/10 rounded-xl w-fit">
             <Zap className="w-4 h-4 animate-bounce" />
-            Analyzing prompt & processing spreadsheet...
+            Analyzing prompt & screenshot...
           </div>
         )}
       </div>
 
-      {/* Larger Prompt Input Form */}
+      {/* Prompt Input Form & Screenshot Upload Controls */}
       <div className="p-3.5 border-t border-slate-800 bg-slate-900/95 select-text">
+        {/* Hidden Screenshot File Input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          onChange={handleImageFileChange}
+          className="hidden"
+        />
+
+        {/* Selected Screenshot Thumbnail Preview */}
+        {selectedImage && (
+          <div className="mb-2 relative w-24 h-24 rounded-xl border-2 border-emerald-500/80 overflow-hidden group shadow-md">
+            <img src={selectedImage} alt="Screenshot Preview" className="w-full h-full object-cover" />
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-1 right-1 bg-slate-950/80 text-white rounded-full p-1 hover:bg-rose-600 transition"
+              title="Remove screenshot"
+            >
+              <X className="w-3 h-3" />
+            </button>
+            <span className="absolute bottom-0 inset-x-0 bg-emerald-950/80 text-emerald-300 text-[9px] text-center font-bold py-0.5">
+              Screenshot Attached
+            </span>
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -295,9 +356,28 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
           }}
           className="flex flex-col gap-2"
         >
+          {/* Action Toolbar above textarea: Screenshot Button */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-400 text-[11px] font-bold rounded-lg transition cursor-pointer"
+              title="Attach Screenshot / Image for AI Analysis"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              Attach Screenshot
+            </button>
+
+            {selectedImage && (
+              <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                <ImageIcon className="w-3 h-3" /> 1 Screenshot Ready
+              </span>
+            )}
+          </div>
+
           <div className="relative flex items-center">
             <textarea
-              placeholder="Type your AI prompt e.g. create a circular pie chart for Data1 and Count..."
+              placeholder="Type your AI prompt or attach a screenshot..."
               value={promptInput}
               onChange={(e) => setPromptInput(e.target.value)}
               onKeyDown={(e) => {
@@ -312,7 +392,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
             />
             <button
               type="submit"
-              disabled={!promptInput.trim() || isProcessing}
+              disabled={(!promptInput.trim() && !selectedImage) || isProcessing}
               className="absolute right-2.5 bottom-2.5 p-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-600 text-white rounded-xl shadow-md transition cursor-pointer"
               title="Send prompt (Press Enter)"
             >
