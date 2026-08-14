@@ -58,13 +58,12 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
   const handleStartEditPrompt = (msg: AiChatMessage) => {
     setEditingMsgId(msg.id);
     setEditingMsgText(msg.text);
-    setPromptInput(msg.text); // Also populate input field for convenience
+    setPromptInput(msg.text);
   };
 
   const handleSaveInlineEdit = async (msgId: string) => {
     if (!editingMsgText.trim() || isProcessing) return;
 
-    // Update prompt text in history
     setChatHistory((prev) =>
       prev.map((m) => (m.id === msgId ? { ...m, text: editingMsgText.trim() } : m))
     );
@@ -159,7 +158,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
   };
 
   return (
-    <aside className="w-80 sm:w-96 bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl relative select-text">
+    <aside className="w-80 sm:w-96 lg:w-[420px] bg-slate-900 border-l border-slate-800 flex flex-col h-full shadow-2xl relative select-text">
       {/* Sidebar Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -193,30 +192,30 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
               className={`flex flex-col group ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`max-w-[90%] p-3 rounded-2xl text-xs leading-relaxed relative select-text cursor-text ${
+                className={`max-w-[92%] p-3.5 rounded-2xl text-xs leading-relaxed relative select-text cursor-text ${
                   msg.sender === 'user'
                     ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-none shadow-md'
                     : 'bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm font-medium'
                 }`}
               >
                 {isInlineEditing ? (
-                  <div className="flex flex-col gap-2 w-full min-w-[220px]">
+                  <div className="flex flex-col gap-2 w-full min-w-[240px]">
                     <textarea
                       value={editingMsgText}
                       onChange={(e) => setEditingMsgText(e.target.value)}
-                      rows={3}
-                      className="w-full bg-slate-950 text-white border border-indigo-400 rounded-xl p-2 text-xs outline-none shadow-inner resize-y select-text"
+                      rows={4}
+                      className="w-full bg-slate-950 text-white border border-indigo-400 rounded-xl p-2.5 text-xs outline-none shadow-inner resize-y select-text"
                     />
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => setEditingMsgId(null)}
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium rounded-lg transition"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium rounded-lg transition cursor-pointer"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => handleSaveInlineEdit(msg.id)}
-                        className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold rounded-lg shadow transition"
+                        className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold rounded-lg shadow transition cursor-pointer"
                       >
                         <RotateCcw className="w-3 h-3" />
                         Save & Re-run
@@ -248,7 +247,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
 
                 <button
                   onClick={() => handleCopyPrompt(msg.id, msg.text)}
-                  className="hover:text-indigo-300 transition flex items-center gap-0.5"
+                  className="hover:text-indigo-300 transition flex items-center gap-0.5 cursor-pointer"
                   title="Copy text to clipboard"
                 >
                   {copiedId === msg.id ? (
@@ -267,7 +266,7 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
                 {msg.sender === 'user' && !isInlineEditing && (
                   <button
                     onClick={() => handleStartEditPrompt(msg)}
-                    className="hover:text-indigo-300 transition flex items-center gap-0.5"
+                    className="hover:text-indigo-300 transition flex items-center gap-0.5 cursor-pointer"
                     title="Edit and re-run prompt"
                   >
                     <Edit3 className="w-3 h-3" />
@@ -280,37 +279,50 @@ export const AiSidebar: React.FC<AiSidebarProps> = ({
         })}
 
         {isProcessing && (
-          <div className="flex items-center gap-2 text-indigo-400 text-xs font-medium p-2 bg-indigo-500/10 rounded-xl w-fit">
+          <div className="flex items-center gap-2 text-indigo-400 text-xs font-medium p-2.5 bg-indigo-500/10 rounded-xl w-fit">
             <Zap className="w-4 h-4 animate-bounce" />
-            Analyzing prompt & generating dashboard widget...
+            Analyzing prompt & processing spreadsheet...
           </div>
         )}
       </div>
 
-      {/* Prompt Input Form */}
-      <div className="p-3 border-t border-slate-800 bg-slate-900/90 select-text">
+      {/* Larger Prompt Input Form */}
+      <div className="p-3.5 border-t border-slate-800 bg-slate-900/95 select-text">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendPrompt();
           }}
-          className="flex items-center gap-2"
+          className="flex flex-col gap-2"
         >
-          <input
-            type="text"
-            placeholder="Type prompt e.g. create a circular pie chart..."
-            value={promptInput}
-            onChange={(e) => setPromptInput(e.target.value)}
-            disabled={isProcessing}
-            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition select-text"
-          />
-          <button
-            type="submit"
-            disabled={!promptInput.trim() || isProcessing}
-            className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl shadow-md transition"
-          >
-            <Send className="w-4 h-4" />
-          </button>
+          <div className="relative flex items-center">
+            <textarea
+              placeholder="Type your AI prompt e.g. create a circular pie chart for Data1 and Count..."
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendPrompt();
+                }
+              }}
+              rows={3}
+              disabled={isProcessing}
+              className="w-full bg-slate-950 border border-slate-700/80 focus:border-indigo-500 rounded-2xl pl-4 pr-12 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition shadow-inner select-text resize-none"
+            />
+            <button
+              type="submit"
+              disabled={!promptInput.trim() || isProcessing}
+              className="absolute right-2.5 bottom-2.5 p-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-600 text-white rounded-xl shadow-md transition cursor-pointer"
+              title="Send prompt (Press Enter)"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-slate-500 px-1 font-medium">
+            <span>Press Enter to send</span>
+            <span>Shift + Enter for new line</span>
+          </div>
         </form>
       </div>
     </aside>
