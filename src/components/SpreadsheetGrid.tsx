@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { SheetData, GridRow, ColumnMeta } from '../types';
 import { Plus, Trash2, Search, Check } from 'lucide-react';
 
@@ -6,6 +6,7 @@ interface SpreadsheetGridProps {
   sheetData: SheetData;
   onUpdateSheetData: (updatedSheet: SheetData) => void;
   onImport?: (importedSheet: SheetData) => void;
+  onSelectCell?: (cellInfo: { rowIndex: number; colKey: string; style?: any; raw?: string | number }) => void;
   highlightCondition?: {
     column: string;
     operator: '>' | '<' | '==' | 'contains';
@@ -17,6 +18,7 @@ interface SpreadsheetGridProps {
 export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sheetData,
   onUpdateSheetData,
+  onSelectCell,
   highlightCondition,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,7 +43,19 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const activeColLetter = activeColMeta ? activeColMeta.label : String.fromCharCode(65 + Math.max(0, activeColIndex));
   const cellAddressLabel = `${activeColLetter}${selectedCell.rowIndex + 1}`;
 
-  const currentActiveCellRaw = sheetData.rows[selectedCell.rowIndex]?.[selectedCell.colKey]?.raw ?? '';
+  const currentActiveCellObj = sheetData.rows[selectedCell.rowIndex]?.[selectedCell.colKey];
+  const currentActiveCellRaw = currentActiveCellObj?.raw ?? '';
+
+  useEffect(() => {
+    if (onSelectCell) {
+      onSelectCell({
+        rowIndex: selectedCell.rowIndex,
+        colKey: selectedCell.colKey,
+        style: currentActiveCellObj?.style,
+        raw: currentActiveCellRaw,
+      });
+    }
+  }, [selectedCell, sheetData]);
 
   // Handle Formula Bar Input
   const handleFormulaInputChange = (val: string) => {
@@ -357,6 +371,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                   {sheetData.columns.map((col) => {
                     const isSelected = selectedCell.rowIndex === rowIndex && selectedCell.colKey === col.key;
                     const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === col.key;
+                    const cellObj = row[col.key];
+                    const cellStyleObj = cellObj?.style || {};
                     const displayValue = evaluateCellValue(row, col.key);
 
                     // Highlight logic
@@ -377,6 +393,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                           setSelectedCell({ rowIndex, colKey: col.key });
                           setEditingCell({ rowIndex, colKey: col.key });
                           setEditValue(String(row[col.key]?.raw ?? ''));
+                        }}
+                        style={{
+                          backgroundColor: cellStyleObj.bgColor,
+                          color: cellStyleObj.color,
+                          fontWeight: cellStyleObj.bold ? 'bold' : 'normal',
+                          fontStyle: cellStyleObj.italic ? 'italic' : 'normal',
+                          textDecoration: cellStyleObj.underline ? 'underline' : 'none',
+                          textAlign: cellStyleObj.align || (typeof displayValue === 'number' ? 'right' : 'left'),
                         }}
                         className={`px-2 py-1 border-r border-b border-[#e1e1e1] cursor-pointer relative transition text-xs select-text ${
                           isSelected ? 'outline outline-2 outline-[#107c41] bg-[#eef7f2] z-10' : ''
@@ -399,7 +423,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                             className="w-full bg-white text-slate-900 border border-[#107c41] px-1 py-0 text-xs outline-none shadow-inner"
                           />
                         ) : (
-                          <span className={`block truncate ${typeof displayValue === 'number' ? 'text-right font-mono' : ''}`}>
+                          <span className="block truncate">
                             {String(displayValue)}
                           </span>
                         )}

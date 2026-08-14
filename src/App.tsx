@@ -16,6 +16,17 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [highlightCondition, setHighlightCondition] = useState<any>(null);
 
+  // Active cell tracking for formatting ribbon commands
+  const [activeCellLocation, setActiveCellLocation] = useState<{
+    rowIndex: number;
+    colKey: string;
+    style?: any;
+    raw?: string | number;
+  }>({
+    rowIndex: 0,
+    colKey: sheetData.columns[0]?.key || 'a',
+  });
+
   // Auto-save sheet data on change
   useEffect(() => {
     StorageService.saveSheetData(sheetData);
@@ -72,6 +83,98 @@ export const App: React.FC = () => {
     setWidgets((prev) => [pieWidget, ...prev]);
   };
 
+  // --- CELL FORMATTING RIBBON HANDLERS ---
+  const updateActiveCellStyle = (styleModifier: (existingStyle: any) => any) => {
+    const { rowIndex, colKey } = activeCellLocation;
+    const newRows = [...sheetData.rows];
+    if (!newRows[rowIndex]) return;
+
+    const currentCell = newRows[rowIndex][colKey] || { raw: '' };
+    const newStyle = styleModifier(currentCell.style || {});
+
+    newRows[rowIndex] = {
+      ...newRows[rowIndex],
+      [colKey]: {
+        ...currentCell,
+        style: newStyle,
+      },
+    };
+
+    setSheetData({ ...sheetData, rows: newRows });
+  };
+
+  const handleToggleBold = () => {
+    updateActiveCellStyle((style) => ({ ...style, bold: !style.bold }));
+  };
+
+  const handleToggleItalic = () => {
+    updateActiveCellStyle((style) => ({ ...style, italic: !style.italic }));
+  };
+
+  const handleToggleUnderline = () => {
+    updateActiveCellStyle((style) => ({ ...style, underline: !style.underline }));
+  };
+
+  const handleSetAlign = (align: 'left' | 'center' | 'right') => {
+    updateActiveCellStyle((style) => ({ ...style, align }));
+  };
+
+  const handleSetCellStyle = (styleName: 'Normal' | 'Bad' | 'Good' | 'Neutral') => {
+    if (styleName === 'Normal') {
+      updateActiveCellStyle((style) => ({ ...style, bgColor: undefined, color: undefined, bold: false }));
+    } else if (styleName === 'Bad') {
+      updateActiveCellStyle((style) => ({ ...style, bgColor: '#ffc7ce', color: '#9c0006', bold: true }));
+    } else if (styleName === 'Good') {
+      updateActiveCellStyle((style) => ({ ...style, bgColor: '#c6efce', color: '#006100', bold: true }));
+    } else if (styleName === 'Neutral') {
+      updateActiveCellStyle((style) => ({ ...style, bgColor: '#ffeb9c', color: '#9c6500', bold: true }));
+    }
+  };
+
+  const handleSetFormat = (type: 'currency' | 'percent') => {
+    const { rowIndex, colKey } = activeCellLocation;
+    const newRows = [...sheetData.rows];
+    if (!newRows[rowIndex]) return;
+
+    const currentCell = newRows[rowIndex][colKey] || { raw: '' };
+    let valStr = String(currentCell.raw ?? '');
+    const num = Number(valStr.replace(/[^0-9.-]+/g, ''));
+
+    if (!isNaN(num) && valStr !== '') {
+      if (type === 'currency') {
+        valStr = `$${num.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      } else if (type === 'percent') {
+        valStr = `${num}%`;
+      }
+    }
+
+    newRows[rowIndex] = {
+      ...newRows[rowIndex],
+      [colKey]: {
+        ...currentCell,
+        raw: valStr,
+      },
+    };
+
+    setSheetData({ ...sheetData, rows: newRows });
+  };
+
+  const handleAutoSum = () => {
+    const { rowIndex, colKey } = activeCellLocation;
+    const newRows = [...sheetData.rows];
+    if (!newRows[rowIndex]) return;
+
+    newRows[rowIndex] = {
+      ...newRows[rowIndex],
+      [colKey]: {
+        ...newRows[rowIndex][colKey],
+        raw: `=SUM(${colKey.toUpperCase()})`,
+      },
+    };
+
+    setSheetData({ ...sheetData, rows: newRows });
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-text">
       {/* Top Header Navigation & Action Bar */}
@@ -86,6 +189,14 @@ export const App: React.FC = () => {
         onExportPdf={handleExportPdf}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onResetData={handleResetData}
+        activeCellStyle={activeCellLocation.style}
+        onToggleBold={handleToggleBold}
+        onToggleItalic={handleToggleItalic}
+        onToggleUnderline={handleToggleUnderline}
+        onSetAlign={handleSetAlign}
+        onSetCellStyle={handleSetCellStyle}
+        onSetFormat={handleSetFormat}
+        onAutoSum={handleAutoSum}
       />
 
       {/* Main App Content Body */}
@@ -100,6 +211,7 @@ export const App: React.FC = () => {
                 setSheetData(imported);
                 setActiveTab('sheet');
               }}
+              onSelectCell={setActiveCellLocation}
               highlightCondition={highlightCondition}
             />
           ) : (

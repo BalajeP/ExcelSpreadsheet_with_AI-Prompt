@@ -19,8 +19,7 @@ import {
   DollarSign,
   Percent,
   Sigma,
-  Search,
-  Sparkles
+  Search
 } from 'lucide-react';
 import type { SheetData } from '../types';
 import { ExportService } from '../services/exportService';
@@ -33,6 +32,23 @@ interface HeaderToolbarProps {
   onExportPdf: () => void;
   onOpenSettings: () => void;
   onResetData: () => void;
+
+  // Active cell formatting actions
+  activeCellStyle?: {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    align?: 'left' | 'center' | 'right';
+    bgColor?: string;
+    color?: string;
+  };
+  onToggleBold?: () => void;
+  onToggleItalic?: () => void;
+  onToggleUnderline?: () => void;
+  onSetAlign?: (align: 'left' | 'center' | 'right') => void;
+  onSetCellStyle?: (styleName: 'Normal' | 'Bad' | 'Good' | 'Neutral') => void;
+  onSetFormat?: (type: 'currency' | 'percent') => void;
+  onAutoSum?: () => void;
 }
 
 export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
@@ -43,6 +59,14 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
   onExportPdf,
   onOpenSettings,
   onResetData,
+  activeCellStyle,
+  onToggleBold,
+  onToggleItalic,
+  onToggleUnderline,
+  onSetAlign,
+  onSetCellStyle,
+  onSetFormat,
+  onAutoSum,
 }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
@@ -94,16 +118,15 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
 
   return (
     <header className="flex flex-col bg-[#107c41] text-white border-b border-[#0b5c30] shadow-md select-text">
-      {/* 1. Top Green Excel Title Bar */}
+      {/* 1. Top Green Excel Title Bar (Clean Microsoft Excel Header) */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-[#107c41] text-white text-xs">
         <div className="flex items-center gap-2">
           <div className="p-1 bg-emerald-800 rounded font-black text-xs tracking-widest text-emerald-200 flex items-center gap-1">
             <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
             <span>XLS</span>
           </div>
-          <span className="font-semibold text-xs tracking-wide flex items-center gap-1.5">
-            Book1 - Excel <span className="opacity-75 font-normal">(Quality Dashboard - Sankari QA)</span>
-            <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+          <span className="font-semibold text-xs tracking-wide">
+            Book1 - Excel
           </span>
         </div>
 
@@ -239,7 +262,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
         </div>
       </div>
 
-      {/* 3. Excel Ribbon Toolbar (Formatting tools matching Microsoft Excel screenshot) */}
+      {/* 3. Interactive Excel Ribbon Formatting Toolbar */}
       <div className="bg-slate-100 text-slate-800 px-3 py-1.5 flex flex-wrap items-center gap-4 text-xs border-b border-slate-300 shadow-inner overflow-x-auto scrollbar-none select-none">
         {/* Clipboard Group */}
         <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
@@ -268,59 +291,129 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             <option>14</option>
             <option>16</option>
           </select>
-          <button className="p-1 font-bold hover:bg-slate-200 rounded text-slate-800" title="Bold">
+
+          {/* Bold Button */}
+          <button
+            onClick={onToggleBold}
+            className={`p-1 rounded transition font-bold ${
+              activeCellStyle?.bold ? 'bg-indigo-200 text-indigo-900 border border-indigo-400' : 'hover:bg-slate-200 text-slate-800'
+            }`}
+            title="Bold (Ctrl+B)"
+          >
             <Bold className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 italic hover:bg-slate-200 rounded text-slate-800" title="Italic">
+
+          {/* Italic Button */}
+          <button
+            onClick={onToggleItalic}
+            className={`p-1 rounded transition italic ${
+              activeCellStyle?.italic ? 'bg-indigo-200 text-indigo-900 border border-indigo-400' : 'hover:bg-slate-200 text-slate-800'
+            }`}
+            title="Italic (Ctrl+I)"
+          >
             <Italic className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 underline hover:bg-slate-200 rounded text-slate-800" title="Underline">
+
+          {/* Underline Button */}
+          <button
+            onClick={onToggleUnderline}
+            className={`p-1 rounded transition underline ${
+              activeCellStyle?.underline ? 'bg-indigo-200 text-indigo-900 border border-indigo-400' : 'hover:bg-slate-200 text-slate-800'
+            }`}
+            title="Underline (Ctrl+U)"
+          >
             <Underline className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Alignment Group */}
         <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
-          <button className="p-1 hover:bg-slate-200 rounded text-slate-700" title="Align Left">
+          <button
+            onClick={() => onSetAlign && onSetAlign('left')}
+            className={`p-1 rounded transition ${
+              activeCellStyle?.align === 'left' ? 'bg-indigo-200 text-indigo-900 border border-indigo-400' : 'hover:bg-slate-200 text-slate-700'
+            }`}
+            title="Align Left"
+          >
             <AlignLeft className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 hover:bg-slate-200 rounded text-slate-700" title="Align Center">
+          <button
+            onClick={() => onSetAlign && onSetAlign('center')}
+            className={`p-1 rounded transition ${
+              activeCellStyle?.align === 'center' ? 'bg-indigo-200 text-indigo-900 border border-indigo-400' : 'hover:bg-slate-200 text-slate-700'
+            }`}
+            title="Align Center"
+          >
             <AlignCenter className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 hover:bg-slate-200 rounded text-slate-700" title="Align Right">
+          <button
+            onClick={() => onSetAlign && onSetAlign('right')}
+            className={`p-1 rounded transition ${
+              activeCellStyle?.align === 'right' ? 'bg-indigo-200 text-indigo-900 border border-indigo-400' : 'hover:bg-slate-200 text-slate-700'
+            }`}
+            title="Align Right"
+          >
             <AlignRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Number Group */}
+        {/* Number Group ($ and %) */}
         <div className="flex items-center gap-1 border-r border-slate-300 pr-3">
-          <button className="p-1 hover:bg-slate-200 rounded text-slate-700 flex items-center gap-0.5" title="Currency Format">
-            <DollarSign className="w-3.5 h-3.5" />
+          <button
+            onClick={() => onSetFormat && onSetFormat('currency')}
+            className="p-1 hover:bg-slate-200 rounded text-slate-700 flex items-center gap-0.5"
+            title="Format as Currency ($)"
+          >
+            <DollarSign className="w-3.5 h-3.5 text-emerald-700" />
           </button>
-          <button className="p-1 hover:bg-slate-200 rounded text-slate-700" title="Percent Format">
-            <Percent className="w-3.5 h-3.5" />
+          <button
+            onClick={() => onSetFormat && onSetFormat('percent')}
+            className="p-1 hover:bg-slate-200 rounded text-slate-700"
+            title="Format as Percentage (%)"
+          >
+            <Percent className="w-3.5 h-3.5 text-indigo-700" />
           </button>
         </div>
 
-        {/* Styles Group (Bad, Good, Neutral matching screenshot!) */}
+        {/* Styles Group (Normal, Bad, Good, Neutral) */}
         <div className="flex items-center gap-1.5 border-r border-slate-300 pr-3 hidden lg:flex">
-          <span className="px-2 py-0.5 bg-[#f2f2f2] border border-[#d9d9d9] rounded text-[10px] text-slate-700 font-medium">
+          <button
+            onClick={() => onSetCellStyle && onSetCellStyle('Normal')}
+            className="px-2 py-0.5 bg-[#f2f2f2] hover:bg-[#e4e4e4] border border-[#d9d9d9] rounded text-[10px] text-slate-700 font-medium transition cursor-pointer"
+            title="Normal Style"
+          >
             Normal
-          </span>
-          <span className="px-2 py-0.5 bg-[#ffc7ce] border border-[#ff8a9e] rounded text-[10px] text-[#9c0006] font-bold">
+          </button>
+          <button
+            onClick={() => onSetCellStyle && onSetCellStyle('Bad')}
+            className="px-2 py-0.5 bg-[#ffc7ce] hover:bg-[#ffaab5] border border-[#ff8a9e] rounded text-[10px] text-[#9c0006] font-bold transition cursor-pointer"
+            title="Bad Cell Style (Red)"
+          >
             Bad
-          </span>
-          <span className="px-2 py-0.5 bg-[#c6efce] border border-[#7ed68d] rounded text-[10px] text-[#006100] font-bold">
+          </button>
+          <button
+            onClick={() => onSetCellStyle && onSetCellStyle('Good')}
+            className="px-2 py-0.5 bg-[#c6efce] hover:bg-[#abedd8] border border-[#7ed68d] rounded text-[10px] text-[#006100] font-bold transition cursor-pointer"
+            title="Good Cell Style (Green)"
+          >
             Good
-          </span>
-          <span className="px-2 py-0.5 bg-[#ffeb9c] border border-[#fcc02e] rounded text-[10px] text-[#9c6500] font-bold">
+          </button>
+          <button
+            onClick={() => onSetCellStyle && onSetCellStyle('Neutral')}
+            className="px-2 py-0.5 bg-[#ffeb9c] hover:bg-[#ffe270] border border-[#fcc02e] rounded text-[10px] text-[#9c6500] font-bold transition cursor-pointer"
+            title="Neutral Cell Style (Yellow)"
+          >
             Neutral
-          </span>
+          </button>
         </div>
 
         {/* Editing / AutoSum Group */}
         <div className="flex items-center gap-1">
-          <button className="flex items-center gap-1 px-2 py-0.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-800 font-semibold text-[11px]" title="AutoSum =SUM()">
+          <button
+            onClick={onAutoSum}
+            className="flex items-center gap-1 px-2 py-0.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-800 font-semibold text-[11px] transition cursor-pointer"
+            title="Insert AutoSum =SUM()"
+          >
             <Sigma className="w-3.5 h-3.5 text-emerald-700" />
             AutoSum
           </button>

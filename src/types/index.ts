@@ -5,9 +5,12 @@ export interface CellValue {
   style?: {
     bold?: boolean;
     italic?: boolean;
+    underline?: boolean;
     color?: string;
     bgColor?: string;
     align?: 'left' | 'center' | 'right';
+    fontSize?: string;
+    fontFamily?: string;
   };
 }
 
