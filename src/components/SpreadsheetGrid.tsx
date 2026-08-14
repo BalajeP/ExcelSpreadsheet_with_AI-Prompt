@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { SheetData, GridRow, ColumnMeta } from '../types';
 import { Plus, Trash2, Search, Check } from 'lucide-react';
 
@@ -21,9 +21,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onSelectCell,
   highlightCondition,
 }) => {
+  const gridContainerRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Cell Selection State
+  // Selection Mode State: 'cell' | 'column' | 'row'
+  const [selectionMode, setSelectionMode] = useState<'cell' | 'column' | 'row'>('cell');
+  const [selectedColKey, setSelectedColKey] = useState<string | null>(null);
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
+
+  // Active Single Cell Focus State
   const [selectedCell, setSelectedCell] = useState<{ rowIndex: number; colKey: string }>({
     rowIndex: 0,
     colKey: sheetData.columns[0]?.key || 'a',
@@ -56,6 +62,77 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       });
     }
   }, [selectedCell, sheetData]);
+
+  // Handle Full Column Click Selection (e.g. Clicking Column Header 'G')
+  const handleSelectColumn = (colKey: string) => {
+    setSelectionMode('column');
+    setSelectedColKey(colKey);
+    setSelectedRowIndex(null);
+    setSelectedCell({ rowIndex: 0, colKey });
+  };
+
+  // Handle Full Row Click Selection (e.g. Clicking Row Header '2')
+  const handleSelectRow = (rowIndex: number) => {
+    setSelectionMode('row');
+    setSelectedRowIndex(rowIndex);
+    setSelectedColKey(null);
+    setSelectedCell({ rowIndex, colKey: sheetData.columns[0]?.key || 'a' });
+  };
+
+  // Handle Keyboard Navigation (Tab, Enter, Shift+Tab, Shift+Enter, Arrow Keys)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (editingCell) return; // Don't intercept arrow keys while editing inside input
+
+    const numRows = sheetData.rows.length;
+    const numCols = sheetData.columns.length;
+    const currentColIndex = sheetData.columns.findIndex((c) => c.key === selectedCell.colKey);
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      setSelectionMode('cell');
+      if (e.shiftKey) {
+        // Shift + Tab -> Move Left
+        const prevColIndex = Math.max(0, currentColIndex - 1);
+        setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[prevColIndex].key });
+      } else {
+        // Tab -> Move Right
+        const nextColIndex = Math.min(numCols - 1, currentColIndex + 1);
+        setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[nextColIndex].key });
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      setSelectionMode('cell');
+      if (e.shiftKey) {
+        // Shift + Enter -> Move Up
+        const prevRowIndex = Math.max(0, selectedCell.rowIndex - 1);
+        setSelectedCell({ rowIndex: prevRowIndex, colKey: selectedCell.colKey });
+      } else {
+        // Enter -> Move Down
+        const nextRowIndex = Math.min(numRows - 1, selectedCell.rowIndex + 1);
+        setSelectedCell({ rowIndex: nextRowIndex, colKey: selectedCell.colKey });
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectionMode('cell');
+      const prevRowIndex = Math.max(0, selectedCell.rowIndex - 1);
+      setSelectedCell({ rowIndex: prevRowIndex, colKey: selectedCell.colKey });
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectionMode('cell');
+      const nextRowIndex = Math.min(numRows - 1, selectedCell.rowIndex + 1);
+      setSelectedCell({ rowIndex: nextRowIndex, colKey: selectedCell.colKey });
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setSelectionMode('cell');
+      const prevColIndex = Math.max(0, currentColIndex - 1);
+      setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[prevColIndex].key });
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setSelectionMode('cell');
+      const nextColIndex = Math.min(numCols - 1, currentColIndex + 1);
+      setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[nextColIndex].key });
+    }
+  };
 
   // Handle Formula Bar Input
   const handleFormulaInputChange = (val: string) => {
@@ -223,7 +300,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   }, [sheetData, searchTerm]);
 
   return (
-    <div className="flex flex-col h-full bg-white text-slate-900 rounded-none border border-slate-300 shadow-xl overflow-hidden font-sans select-text">
+    <div
+      ref={gridContainerRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="flex flex-col h-full bg-white text-slate-900 rounded-none border border-slate-300 shadow-xl overflow-hidden font-sans select-text focus:outline-none"
+    >
       {/* 1. Formula Bar (fx) matching Excel screenshot */}
       <div className="flex items-center gap-2 bg-[#f3f3f3] border-b border-[#d4d4d4] px-3 py-1.5 text-xs text-slate-800">
         {/* Cell Name Box e.g. A1 */}
@@ -284,17 +366,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                 ◢
               </th>
 
-              {/* Column Headers (A, B, C... Z) */}
+              {/* Column Headers (A, B, C... G... Z) */}
               {sheetData.columns.map((col) => {
                 const isEditingCol = editingColKey === col.key;
-                const isColSelected = selectedCell.colKey === col.key;
+                const isColHeaderSelected = selectedCell.colKey === col.key || (selectionMode === 'column' && selectedColKey === col.key);
 
                 return (
                   <th
                     key={col.key}
-                    onClick={() => setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: col.key })}
-                    className={`px-2 py-1 border-r border-[#d4d4d4] min-w-[85px] group relative text-center text-[11px] font-semibold ${
-                      isColSelected ? 'bg-[#d9ebe1] text-[#107c41] font-bold border-b-2 border-b-[#107c41]' : 'hover:bg-[#e8e8e8]'
+                    onClick={() => handleSelectColumn(col.key)}
+                    className={`px-2 py-1 border-r border-[#d4d4d4] min-w-[85px] group relative text-center text-[11px] font-semibold transition cursor-pointer ${
+                      isColHeaderSelected ? 'bg-[#d9ebe1] text-[#107c41] font-bold border-b-2 border-b-[#107c41]' : 'hover:bg-[#e8e8e8]'
                     }`}
                     style={{ width: col.width || 90 }}
                   >
@@ -321,12 +403,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     ) : (
                       <div className="flex items-center justify-between">
                         <span
-                          onDoubleClick={() => {
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
                             setEditingColKey(col.key);
                             setEditColLabel(col.label);
                           }}
-                          className="flex-1 truncate cursor-pointer"
-                          title="Double click to rename column header"
+                          className="flex-1 truncate"
+                          title="Click to select column, double click to rename"
                         >
                           {col.label}
                         </span>
@@ -353,15 +436,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           </thead>
           <tbody className="divide-y divide-[#e1e1e1]">
             {filteredRows.map((row, rowIndex) => {
-              const isRowSelected = selectedCell.rowIndex === rowIndex;
+              const isRowHeaderSelected = selectedCell.rowIndex === rowIndex || (selectionMode === 'row' && selectedRowIndex === rowIndex);
 
               return (
                 <tr key={rowIndex} className="hover:bg-[#f5f5f5] transition-colors group">
-                  {/* Row Number Header (1, 2, 3...) */}
+                  {/* Row Number Header (1, 2, 3...) - Click selects entire row! */}
                   <td
-                    onClick={() => setSelectedCell({ rowIndex, colKey: selectedCell.colKey })}
-                    className={`w-10 px-2 py-1 text-center font-mono text-[11px] border-r border-[#d4d4d4] select-none cursor-pointer ${
-                      isRowSelected ? 'bg-[#d9ebe1] text-[#107c41] font-bold border-r-2 border-r-[#107c41]' : 'bg-[#f3f3f3] text-[#666666]'
+                    onClick={() => handleSelectRow(rowIndex)}
+                    className={`w-10 px-2 py-1 text-center font-mono text-[11px] border-r border-[#d4d4d4] select-none cursor-pointer transition ${
+                      isRowHeaderSelected ? 'bg-[#d9ebe1] text-[#107c41] font-bold border-r-2 border-r-[#107c41]' : 'bg-[#f3f3f3] text-[#666666]'
                     }`}
                   >
                     {rowIndex + 1}
@@ -369,7 +452,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
                   {/* Columns Data Cells */}
                   {sheetData.columns.map((col) => {
-                    const isSelected = selectedCell.rowIndex === rowIndex && selectedCell.colKey === col.key;
+                    const isCellFocused = selectedCell.rowIndex === rowIndex && selectedCell.colKey === col.key;
+                    const isColumnSelected = selectionMode === 'column' && selectedColKey === col.key;
+                    const isRowSelected = selectionMode === 'row' && selectedRowIndex === rowIndex;
+
                     const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.colKey === col.key;
                     const cellObj = row[col.key];
                     const cellStyleObj = cellObj?.style || {};
@@ -390,12 +476,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       <td
                         key={col.key}
                         onClick={() => {
+                          setSelectionMode('cell');
                           setSelectedCell({ rowIndex, colKey: col.key });
                           setEditingCell({ rowIndex, colKey: col.key });
                           setEditValue(String(row[col.key]?.raw ?? ''));
                         }}
                         style={{
-                          backgroundColor: cellStyleObj.bgColor,
+                          backgroundColor: isColumnSelected || isRowSelected ? '#d9d9d9' : cellStyleObj.bgColor,
                           color: cellStyleObj.color,
                           fontWeight: cellStyleObj.bold ? 'bold' : 'normal',
                           fontStyle: cellStyleObj.italic ? 'italic' : 'normal',
@@ -403,8 +490,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                           textAlign: cellStyleObj.align || (typeof displayValue === 'number' ? 'right' : 'left'),
                         }}
                         className={`px-2 py-1 border-r border-b border-[#e1e1e1] cursor-pointer relative transition text-xs select-text ${
-                          isSelected ? 'outline outline-2 outline-[#107c41] bg-[#eef7f2] z-10' : ''
-                        } ${isHighlighted ? 'bg-emerald-100 text-emerald-900 font-semibold' : ''}`}
+                          isCellFocused ? 'outline outline-2 outline-[#107c41] bg-[#eef7f2] z-10' : ''
+                        } ${isColumnSelected || isRowSelected ? 'border-x border-x-[#107c41]' : ''} ${
+                          isHighlighted ? 'bg-emerald-100 text-emerald-900 font-semibold' : ''
+                        }`}
                       >
                         {isEditing ? (
                           <input
