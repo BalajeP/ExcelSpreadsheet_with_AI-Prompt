@@ -70,17 +70,39 @@ export const App: React.FC = () => {
   };
 
   const handleAddSamplePieChart = () => {
+    const firstColKey = sheetData.columns[0]?.key || 'a';
+    const numColKey = sheetData.columns.find((c) => c.key !== firstColKey)?.key || sheetData.columns[1]?.key || 'b';
+
     const pieWidget: DashboardWidget = {
       id: `widget-pie-${Date.now()}`,
-      title: 'Circular Pie Chart: Count by Data1',
+      title: `Circular Pie Chart: Count by ${firstColKey.toUpperCase()}`,
       type: 'chart',
       chartType: 'pie',
-      labelColumn: 'data1',
-      valueColumn: 'count',
+      labelColumn: firstColKey,
+      valueColumn: numColKey,
       aggregation: 'SUM',
       customColors: ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#06b6d4'],
     };
     setWidgets((prev) => [pieWidget, ...prev]);
+    setActiveTab('dashboard');
+  };
+
+  const handleAddSampleBarChart = () => {
+    const firstColKey = sheetData.columns[0]?.key || 'a';
+    const numColKey = sheetData.columns.find((c) => c.key !== firstColKey)?.key || sheetData.columns[1]?.key || 'b';
+
+    const barWidget: DashboardWidget = {
+      id: `widget-bar-${Date.now()}`,
+      title: `Column / Bar Chart: Summary by ${firstColKey.toUpperCase()}`,
+      type: 'chart',
+      chartType: 'bar',
+      labelColumn: firstColKey,
+      valueColumn: numColKey,
+      aggregation: 'SUM',
+      customColors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+    };
+    setWidgets((prev) => [barWidget, ...prev]);
+    setActiveTab('dashboard');
   };
 
   // --- CELL FORMATTING RIBBON HANDLERS ---
@@ -189,6 +211,8 @@ export const App: React.FC = () => {
         onExportPdf={handleExportPdf}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onResetData={handleResetData}
+        onAddPieChart={handleAddSamplePieChart}
+        onAddBarChart={handleAddSampleBarChart}
         activeCellStyle={activeCellLocation.style}
         onToggleBold={handleToggleBold}
         onToggleItalic={handleToggleItalic}
