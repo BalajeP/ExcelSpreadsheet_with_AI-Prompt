@@ -13,7 +13,7 @@ import {
 } from 'chart.js';
 import { Pie, Doughnut, Bar, Line } from 'react-chartjs-2';
 import type { SheetData, DashboardWidget } from '../types';
-import { Trash2, TrendingUp, Layers, Plus } from 'lucide-react';
+import { Trash2, TrendingUp, Layers, Plus, FileSpreadsheet, LayoutDashboard } from 'lucide-react';
 
 ChartJS.register(
   ArcElement,
@@ -32,6 +32,8 @@ interface DashboardViewProps {
   widgets: DashboardWidget[];
   onUpdateWidgets: (widgets: DashboardWidget[]) => void;
   onAddSamplePieChart: () => void;
+  onSwitchTab?: (tab: 'sheet' | 'dashboard') => void;
+  activeTab?: 'sheet' | 'dashboard';
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -39,6 +41,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   widgets,
   onUpdateWidgets,
   onAddSamplePieChart,
+  onSwitchTab,
+  activeTab = 'dashboard',
 }) => {
   const handleDeleteWidget = (id: string) => {
     onUpdateWidgets(widgets.filter((w) => w.id !== id));
@@ -135,116 +139,154 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div
-      id="dashboard-print-container"
-      className="p-6 bg-slate-950 text-slate-100 min-h-full rounded-2xl border border-slate-800 shadow-2xl flex flex-col gap-6"
-    >
-      {/* Dashboard Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-            <Layers className="w-6 h-6 text-indigo-400" />
-            Executive Analytics Dashboard
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Real-time interactive visualizations synchronized with your spreadsheet entries
-          </p>
-        </div>
+    <div className="flex flex-col h-full bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden">
+      <div
+        id="dashboard-print-container"
+        className="p-6 flex-1 overflow-auto text-slate-100 flex flex-col gap-6"
+      >
+        {/* Dashboard Top Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+              <Layers className="w-6 h-6 text-indigo-400" />
+              Executive Analytics Dashboard
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Real-time interactive visualizations synchronized with your spreadsheet entries
+            </p>
+          </div>
 
-        <button
-          onClick={onAddSamplePieChart}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-600/20 transition"
-        >
-          <Plus className="w-4 h-4" />
-          Add Pie Chart
-        </button>
-      </div>
-
-      {/* Widgets Grid */}
-      {widgets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800 text-center">
-          <Layers className="w-12 h-12 text-slate-600 mb-3" />
-          <h3 className="text-base font-semibold text-slate-300">No Dashboard Widgets Yet</h3>
-          <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
-            Type a prompt in the AI sidebar like: "Create a circular pie chart for Data1 and Count"
-          </p>
           <button
             onClick={onAddSamplePieChart}
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg shadow"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-600/20 transition cursor-pointer"
           >
-            Create First Pie Chart
+            <Plus className="w-4 h-4" />
+            Add Pie Chart
           </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {widgets.map((widget) => {
-            if (widget.type === 'kpi') {
-              const val = computeKpiValue(widget);
+
+        {/* Widgets Grid */}
+        {widgets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800 text-center">
+            <Layers className="w-12 h-12 text-slate-600 mb-3" />
+            <h3 className="text-base font-semibold text-slate-300">No Dashboard Widgets Yet</h3>
+            <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
+              Type a prompt in the AI sidebar like: "Create a circular pie chart for Data1 and Count"
+            </p>
+            <button
+              onClick={onAddSamplePieChart}
+              className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg shadow cursor-pointer"
+            >
+              Create First Pie Chart
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {widgets.map((widget) => {
+              if (widget.type === 'kpi') {
+                const val = computeKpiValue(widget);
+                return (
+                  <div
+                    key={widget.id}
+                    className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col justify-between hover:border-indigo-500/40 transition group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        {widget.title}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
+                          <TrendingUp className="w-4 h-4" />
+                        </div>
+                        <button
+                          onClick={() => handleDeleteWidget(widget.id)}
+                          className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-1 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="text-3xl font-black text-white tracking-tight font-mono">
+                        {val.toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-emerald-400 font-medium mt-1">
+                        Live sync with spreadsheet
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              const chartData = computeChartData(widget);
+
               return (
                 <div
                   key={widget.id}
-                  className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col justify-between hover:border-indigo-500/40 transition group"
+                  className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col justify-between hover:border-indigo-500/40 transition group min-h-[320px]"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-slate-200 truncate flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
                       {widget.title}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-400">
-                        <TrendingUp className="w-4 h-4" />
-                      </div>
-                      <button
-                        onClick={() => handleDeleteWidget(widget.id)}
-                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-1 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    </h3>
+                    <button
+                      onClick={() => handleDeleteWidget(widget.id)}
+                      className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-1 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="mt-4">
-                    <div className="text-3xl font-black text-white tracking-tight font-mono">
-                      {val.toLocaleString()}
-                    </div>
-                    <div className="text-[11px] text-emerald-400 font-medium mt-1">
-                      Live sync with spreadsheet
-                    </div>
+
+                  {/* Chart Container */}
+                  <div className="relative flex-1 w-full min-h-[220px]">
+                    {widget.chartType === 'pie' && <Pie data={chartData} options={chartOptions} />}
+                    {widget.chartType === 'doughnut' && <Doughnut data={chartData} options={chartOptions} />}
+                    {widget.chartType === 'bar' && <Bar data={chartData} options={chartOptions} />}
+                    {widget.chartType === 'line' && <Line data={chartData} options={chartOptions} />}
                   </div>
                 </div>
               );
-            }
+            })}
+          </div>
+        )}
+      </div>
 
-            const chartData = computeChartData(widget);
+      {/* Excel Bottom Status Bar (Grid View & Dashboard View Tabs at Bottom!) */}
+      <div className="px-3 py-1.5 bg-[#f3f3f3] border-t border-[#d4d4d4] text-[11px] text-slate-600 flex items-center justify-between select-none">
+        <div className="flex items-center gap-1.5">
+          {/* Sheet1 (Grid View) Tab */}
+          <button
+            onClick={() => onSwitchTab && onSwitchTab('sheet')}
+            className={`flex items-center gap-1.5 px-3 py-1 font-bold text-[11px] cursor-pointer transition border-x border-[#d4d4d4] ${
+              activeTab === 'sheet'
+                ? 'bg-white border-t-2 border-t-[#107c41] text-[#107c41] shadow-xs'
+                : 'bg-[#e6e6e6] hover:bg-white text-slate-700'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Sheet1 (Grid View)
+          </button>
 
-            return (
-              <div
-                key={widget.id}
-                className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col justify-between hover:border-indigo-500/40 transition group min-h-[320px]"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold text-slate-200 truncate flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                    {widget.title}
-                  </h3>
-                  <button
-                    onClick={() => handleDeleteWidget(widget.id)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-1 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Chart Container */}
-                <div className="relative flex-1 w-full min-h-[220px]">
-                  {widget.chartType === 'pie' && <Pie data={chartData} options={chartOptions} />}
-                  {widget.chartType === 'doughnut' && <Doughnut data={chartData} options={chartOptions} />}
-                  {widget.chartType === 'bar' && <Bar data={chartData} options={chartOptions} />}
-                  {widget.chartType === 'line' && <Line data={chartData} options={chartOptions} />}
-                </div>
-              </div>
-            );
-          })}
+          {/* Dashboard View Tab */}
+          <button
+            onClick={() => onSwitchTab && onSwitchTab('dashboard')}
+            className={`flex items-center gap-1.5 px-3 py-1 font-bold text-[11px] cursor-pointer transition border-x border-[#d4d4d4] ${
+              activeTab === 'dashboard'
+                ? 'bg-white border-t-2 border-t-[#107c41] text-[#107c41] shadow-xs'
+                : 'bg-[#e6e6e6] hover:bg-white text-slate-700'
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5 text-indigo-600" />
+            Dashboard View
+          </button>
         </div>
-      )}
+
+        <div className="flex items-center gap-4 text-[11px] text-slate-500">
+          <span>Ready</span>
+          <span>100%</span>
+        </div>
+      </div>
     </div>
   );
 };

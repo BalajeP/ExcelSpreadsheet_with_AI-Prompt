@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { SheetData, GridRow, ColumnMeta } from '../types';
-import { Plus, Trash2, Search, Check } from 'lucide-react';
+import { Plus, Trash2, Search, Check, FileSpreadsheet, LayoutDashboard } from 'lucide-react';
 
 interface SpreadsheetGridProps {
   sheetData: SheetData;
   onUpdateSheetData: (updatedSheet: SheetData) => void;
   onImport?: (importedSheet: SheetData) => void;
   onSelectCell?: (cellInfo: { rowIndex: number; colKey: string; style?: any; raw?: string | number }) => void;
+  onSwitchTab?: (tab: 'sheet' | 'dashboard') => void;
+  activeTab?: 'sheet' | 'dashboard';
   highlightCondition?: {
     column: string;
     operator: '>' | '<' | '==' | 'contains';
@@ -19,6 +21,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sheetData,
   onUpdateSheetData,
   onSelectCell,
+  onSwitchTab,
+  activeTab = 'sheet',
   highlightCondition,
 }) => {
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -81,7 +85,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Handle Keyboard Navigation (Tab, Enter, Shift+Tab, Shift+Enter, Arrow Keys)
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (editingCell) return; // Don't intercept arrow keys while editing inside input
+    if (editingCell) return;
 
     const numRows = sheetData.rows.length;
     const numCols = sheetData.columns.length;
@@ -91,11 +95,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       e.preventDefault();
       setSelectionMode('cell');
       if (e.shiftKey) {
-        // Shift + Tab -> Move Left
         const prevColIndex = Math.max(0, currentColIndex - 1);
         setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[prevColIndex].key });
       } else {
-        // Tab -> Move Right
         const nextColIndex = Math.min(numCols - 1, currentColIndex + 1);
         setSelectedCell({ rowIndex: selectedCell.rowIndex, colKey: sheetData.columns[nextColIndex].key });
       }
@@ -103,11 +105,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       e.preventDefault();
       setSelectionMode('cell');
       if (e.shiftKey) {
-        // Shift + Enter -> Move Up
         const prevRowIndex = Math.max(0, selectedCell.rowIndex - 1);
         setSelectedCell({ rowIndex: prevRowIndex, colKey: selectedCell.colKey });
       } else {
-        // Enter -> Move Down
         const nextRowIndex = Math.min(numRows - 1, selectedCell.rowIndex + 1);
         setSelectedCell({ rowIndex: nextRowIndex, colKey: selectedCell.colKey });
       }
@@ -331,14 +331,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         <div className="flex items-center gap-1.5 ml-2">
           <button
             onClick={handleAddRow}
-            className="flex items-center gap-1 px-2.5 py-1 bg-[#107c41] hover:bg-[#0e6e39] text-white text-[11px] font-semibold rounded shadow-sm transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-[#107c41] hover:bg-[#0e6e39] text-white text-[11px] font-semibold rounded shadow-sm transition cursor-pointer"
           >
             <Plus className="w-3 h-3" />
             Row
           </button>
           <button
             onClick={handleAddColumn}
-            className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold rounded border border-slate-300 transition"
+            className="flex items-center gap-1 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold rounded border border-slate-300 transition cursor-pointer"
           >
             <Plus className="w-3 h-3 text-slate-600" />
             Col
@@ -440,7 +440,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
               return (
                 <tr key={rowIndex} className="hover:bg-[#f5f5f5] transition-colors group">
-                  {/* Row Number Header (1, 2, 3...) - Click selects entire row! */}
+                  {/* Row Number Header (1, 2, 3...) */}
                   <td
                     onClick={() => handleSelectRow(rowIndex)}
                     className={`w-10 px-2 py-1 text-center font-mono text-[11px] border-r border-[#d4d4d4] select-none cursor-pointer transition ${
@@ -537,14 +537,36 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         </table>
       </div>
 
-      {/* 3. Excel Bottom Status Bar (Sheet1, +, Ready, Zoom) */}
+      {/* 3. Excel Bottom Status Bar (Grid View & Dashboard View Tabs at Bottom!) */}
       <div className="px-3 py-1 bg-[#f3f3f3] border-t border-[#d4d4d4] text-[11px] text-slate-600 flex items-center justify-between select-none">
-        <div className="flex items-center gap-3">
-          {/* Active Sheet Tab */}
-          <div className="flex items-center bg-white border-t-2 border-t-[#107c41] border-x border-[#d4d4d4] px-3 py-0.5 font-bold text-[#107c41] text-[11px]">
-            Sheet1
-          </div>
-          <button onClick={handleAddColumn} className="p-0.5 hover:bg-slate-200 rounded text-slate-500" title="Add Sheet">
+        <div className="flex items-center gap-1.5">
+          {/* Sheet1 (Grid View) Tab */}
+          <button
+            onClick={() => onSwitchTab && onSwitchTab('sheet')}
+            className={`flex items-center gap-1.5 px-3 py-1 font-bold text-[11px] cursor-pointer transition border-x border-[#d4d4d4] ${
+              activeTab === 'sheet'
+                ? 'bg-white border-t-2 border-t-[#107c41] text-[#107c41] shadow-xs'
+                : 'bg-[#e6e6e6] hover:bg-white text-slate-700'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Sheet1 (Grid View)
+          </button>
+
+          {/* Dashboard View Tab */}
+          <button
+            onClick={() => onSwitchTab && onSwitchTab('dashboard')}
+            className={`flex items-center gap-1.5 px-3 py-1 font-bold text-[11px] cursor-pointer transition border-x border-[#d4d4d4] ${
+              activeTab === 'dashboard'
+                ? 'bg-white border-t-2 border-t-[#107c41] text-[#107c41] shadow-xs'
+                : 'bg-[#e6e6e6] hover:bg-white text-slate-700'
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5 text-indigo-600" />
+            Dashboard View
+          </button>
+
+          <button onClick={handleAddColumn} className="p-1 hover:bg-slate-200 rounded text-slate-500" title="Add Sheet">
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>

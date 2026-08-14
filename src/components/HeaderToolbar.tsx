@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FileSpreadsheet, 
-  LayoutDashboard, 
   Download, 
   FileUp, 
   FileText, 
@@ -30,7 +28,8 @@ import {
   Save,
   CheckCircle2,
   FolderDown,
-  Info
+  Info,
+  FileSpreadsheet
 } from 'lucide-react';
 import type { SheetData } from '../types';
 import { ExportService } from '../services/exportService';
@@ -65,8 +64,6 @@ interface HeaderToolbarProps {
 }
 
 export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
-  activeTab,
-  setActiveTab,
   sheetData,
   onImport,
   onExportPdf,
@@ -143,7 +140,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
         {/* File Backstage Menu Trigger */}
         <button
           onClick={() => setIsFileMenuOpen(true)}
-          className="px-3 py-1 bg-[#0b5c30] font-bold text-white uppercase tracking-wider text-[11px] hover:bg-[#084825] flex items-center gap-1 transition"
+          className="px-3 py-1 bg-[#0b5c30] font-bold text-white uppercase tracking-wider text-[11px] hover:bg-[#084825] flex items-center gap-1 transition cursor-pointer"
         >
           <Save className="w-3 h-3 text-emerald-300" />
           File
@@ -179,31 +176,6 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
 
         {/* Navigation & Action Triggers right inside Ribbon menu */}
         <div className="ml-auto flex items-center gap-1.5 py-0.5">
-          {/* Sheet vs Dashboard View Toggle */}
-          <button
-            onClick={() => setActiveTab('sheet')}
-            className={`px-2.5 py-0.5 rounded text-[11px] font-semibold flex items-center gap-1 transition ${
-              activeTab === 'sheet'
-                ? 'bg-white text-[#107c41] shadow-sm'
-                : 'bg-emerald-800/80 text-emerald-100 hover:bg-emerald-800'
-            }`}
-          >
-            <FileSpreadsheet className="w-3 h-3" />
-            Grid View
-          </button>
-
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-2.5 py-0.5 rounded text-[11px] font-semibold flex items-center gap-1 transition ${
-              activeTab === 'dashboard'
-                ? 'bg-white text-[#107c41] shadow-sm'
-                : 'bg-emerald-800/80 text-emerald-100 hover:bg-emerald-800'
-            }`}
-          >
-            <LayoutDashboard className="w-3 h-3" />
-            Dashboard
-          </button>
-
           {/* RESET Button */}
           <button
             onClick={onResetData}
@@ -440,7 +412,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
           <div className="flex items-center gap-2 border-r border-slate-300 pr-3">
             <button
               onClick={onAddBarChart}
-              className="flex flex-col items-center p-1 hover:bg-slate-200 rounded text-slate-700"
+              className="flex flex-col items-center p-1 hover:bg-slate-200 rounded text-slate-700 cursor-pointer"
               title="Insert PivotTable"
             >
               <Grid className="w-4 h-4 text-indigo-700" />
@@ -448,7 +420,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             </button>
             <button
               onClick={onAddBarChart}
-              className="flex flex-col items-center p-1 hover:bg-slate-200 rounded text-slate-700"
+              className="flex flex-col items-center p-1 hover:bg-slate-200 rounded text-slate-700 cursor-pointer"
               title="Insert Data Table"
             >
               <TableIcon className="w-4 h-4 text-emerald-700" />
@@ -471,9 +443,8 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             <button
               onClick={() => {
                 if (onAddPieChart) onAddPieChart();
-                setActiveTab('dashboard');
               }}
-              className="flex flex-col items-center p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded text-indigo-900 transition"
+              className="flex flex-col items-center p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded text-indigo-900 transition cursor-pointer"
               title="Insert Circular Pie / Doughnut Chart"
             >
               <PieChartIcon className="w-4 h-4 text-pink-600" />
@@ -483,9 +454,8 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             <button
               onClick={() => {
                 if (onAddBarChart) onAddBarChart();
-                setActiveTab('dashboard');
               }}
-              className="flex flex-col items-center p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded text-indigo-900 transition"
+              className="flex flex-col items-center p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded text-indigo-900 transition cursor-pointer"
               title="Insert Column / Bar Chart"
             >
               <BarChartIcon className="w-4 h-4 text-indigo-600" />
@@ -495,9 +465,8 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
             <button
               onClick={() => {
                 if (onAddBarChart) onAddBarChart();
-                setActiveTab('dashboard');
               }}
-              className="flex flex-col items-center p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded text-indigo-900 transition"
+              className="flex flex-col items-center p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded text-indigo-900 transition cursor-pointer"
               title="Insert Trend Line Chart"
             >
               <TrendingUp className="w-4 h-4 text-emerald-600" />
@@ -522,7 +491,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
         </div>
       )}
 
-      {/* 3. EXCEL FILE BACKSTAGE MENU (Auto Save & Save As Modal) */}
+      {/* 3. EXCEL FILE BACKSTAGE MENU */}
       {isFileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl text-slate-100 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -534,7 +503,7 @@ export const HeaderToolbar: React.FC<HeaderToolbarProps> = ({
               </div>
               <button
                 onClick={() => setIsFileMenuOpen(false)}
-                className="p-1 hover:bg-emerald-800 rounded-lg transition"
+                className="p-1 hover:bg-emerald-800 rounded-lg transition cursor-pointer"
               >
                 <X className="w-5 h-5 text-white" />
               </button>

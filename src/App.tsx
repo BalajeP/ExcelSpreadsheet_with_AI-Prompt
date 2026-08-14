@@ -236,6 +236,8 @@ export const App: React.FC = () => {
                 setActiveTab('sheet');
               }}
               onSelectCell={setActiveCellLocation}
+              onSwitchTab={setActiveTab}
+              activeTab={activeTab}
               highlightCondition={highlightCondition}
             />
           ) : (
@@ -244,6 +246,8 @@ export const App: React.FC = () => {
               widgets={widgets}
               onUpdateWidgets={setWidgets}
               onAddSamplePieChart={handleAddSamplePieChart}
+              onSwitchTab={setActiveTab}
+              activeTab={activeTab}
             />
           )}
         </main>
