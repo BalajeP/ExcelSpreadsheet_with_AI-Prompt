@@ -1,22 +1,16 @@
 import type { SheetData, DashboardWidget, AppSettings } from '../types';
 
 const STORAGE_KEYS = {
-  SHEET_DATA: 'ai_excel_sheet_data_v2',
-  DASHBOARD_WIDGETS: 'ai_excel_widgets_v2',
-  SETTINGS: 'ai_excel_settings_v2',
+  SHEET_DATA: 'ai_excel_sheet_data_v3',
+  DASHBOARD_WIDGETS: 'ai_excel_widgets_v3',
+  SETTINGS: 'ai_excel_settings_v3',
 };
 
 export const INITIAL_SHEET_DATA: SheetData = {
   id: 'sheet-1',
   title: 'Quality Analytics & Test Records',
-  columns: [
-    { key: 'date', label: 'Date', type: 'date', width: 130 },
-    { key: 'category', label: 'Category', type: 'string', width: 140 },
-    { key: 'data1', label: 'Test Case / Data1', type: 'string', width: 180 },
-    { key: 'count', label: 'Count', type: 'number', width: 110 },
-    { key: 'status', label: 'Status', type: 'string', width: 130 },
-  ],
-  rows: [], // Clean start - sample data removed as requested
+  columns: [], // Clean start - no headers initially
+  rows: [],    // Clean start - no rows initially
 };
 
 export const INITIAL_WIDGETS: DashboardWidget[] = [];

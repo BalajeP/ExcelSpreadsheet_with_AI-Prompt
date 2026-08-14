@@ -96,6 +96,10 @@ export const App: React.FC = () => {
             <SpreadsheetGrid
               sheetData={sheetData}
               onUpdateSheetData={handleUpdateSheetData}
+              onImport={(imported) => {
+                setSheetData(imported);
+                setActiveTab('sheet');
+              }}
               highlightCondition={highlightCondition}
             />
           ) : (
