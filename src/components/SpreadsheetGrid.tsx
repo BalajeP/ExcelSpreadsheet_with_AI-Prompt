@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { SheetData, GridRow, ColumnMeta } from '../types';
-import { Plus, Trash2, Search, Hash, Type, Calendar } from 'lucide-react';
+import { Plus, Trash2, Search, Hash, Type, Calendar, Edit2, Check, X } from 'lucide-react';
 
 interface SpreadsheetGridProps {
   sheetData: SheetData;
@@ -21,6 +21,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; colKey: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  // Column Header Editing State
+  const [editingColKey, setEditingColKey] = useState<string | null>(null);
+  const [editColLabel, setEditColLabel] = useState('');
 
   // Handle cell edit save
   const handleSaveCell = (rowIndex: number, colKey: string) => {
@@ -47,6 +51,47 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setEditingCell(null);
   };
 
+  // Save Column Header Rename
+  const handleSaveColumnHeader = (colKey: string) => {
+    if (!editColLabel.trim()) {
+      setEditingColKey(null);
+      return;
+    }
+
+    const updatedCols = sheetData.columns.map((c) => {
+      if (c.key === colKey) {
+        return { ...c, label: editColLabel.trim() };
+      }
+      return c;
+    });
+
+    onUpdateSheetData({ ...sheetData, columns: updatedCols });
+    setEditingColKey(null);
+  };
+
+  // Delete Column
+  const handleDeleteColumn = (colKey: string) => {
+    if (sheetData.columns.length <= 1) {
+      alert('Cannot delete the last column.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete column "${colKey}"?`)) return;
+
+    const updatedCols = sheetData.columns.filter((c) => c.key !== colKey);
+    const updatedRows = sheetData.rows.map((row) => {
+      const copy = { ...row };
+      delete copy[colKey];
+      return copy;
+    });
+
+    onUpdateSheetData({
+      ...sheetData,
+      columns: updatedCols,
+      rows: updatedRows,
+    });
+  };
+
   // Evaluate cell values (formulas vs raw)
   const evaluateCellValue = (row: GridRow, colKey: string): string | number => {
     const cell = row[colKey];
@@ -56,7 +101,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     if (rawStr.startsWith('=')) {
       const formula = rawStr.substring(1).trim().toUpperCase();
       if (formula.startsWith('SUM(')) {
-        // Calculate sum of column
         const targetCol = formula.match(/SUM\(([^)]+)\)/i)?.[1]?.toLowerCase() || colKey;
         const total = sheetData.rows.reduce((acc, r) => {
           const val = Number(r[targetCol]?.raw ?? 0);
@@ -173,22 +217,82 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           <thead>
             <tr className="bg-slate-800/90 sticky top-0 z-10 border-b border-slate-700 text-slate-300 font-semibold select-none">
               <th className="w-12 px-3 py-2.5 text-center text-slate-500 border-r border-slate-700/60">#</th>
-              {sheetData.columns.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-4 py-2.5 border-r border-slate-700/60 min-w-[120px]"
-                  style={{ width: col.width }}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                      {col.type === 'number' && <Hash className="w-3 h-3 text-indigo-400" />}
-                      {col.type === 'date' && <Calendar className="w-3 h-3 text-pink-400" />}
-                      {col.type === 'string' && <Type className="w-3 h-3 text-emerald-400" />}
-                      {col.label}
-                    </span>
-                  </div>
-                </th>
-              ))}
+              {sheetData.columns.map((col) => {
+                const isEditingCol = editingColKey === col.key;
+
+                return (
+                  <th
+                    key={col.key}
+                    className="px-4 py-2 border-r border-slate-700/60 min-w-[140px] group relative"
+                    style={{ width: col.width }}
+                  >
+                    {isEditingCol ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={editColLabel}
+                          onChange={(e) => setEditColLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveColumnHeader(col.key);
+                            if (e.key === 'Escape') setEditingColKey(null);
+                          }}
+                          className="w-full bg-slate-950 text-indigo-200 border border-indigo-500 rounded px-2 py-0.5 text-xs outline-none"
+                        />
+                        <button
+                          onClick={() => handleSaveColumnHeader(col.key)}
+                          className="text-emerald-400 hover:text-emerald-300 p-0.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingColKey(null)}
+                          className="text-slate-400 hover:text-white p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-1">
+                        <span
+                          onDoubleClick={() => {
+                            setEditingColKey(col.key);
+                            setEditColLabel(col.label);
+                          }}
+                          className="font-semibold text-slate-200 flex items-center gap-1.5 cursor-pointer hover:text-indigo-300 transition truncate"
+                          title="Double click to rename column header"
+                        >
+                          {col.type === 'number' && <Hash className="w-3 h-3 text-indigo-400" />}
+                          {col.type === 'date' && <Calendar className="w-3 h-3 text-pink-400" />}
+                          {col.type === 'string' && <Type className="w-3 h-3 text-emerald-400" />}
+                          {col.label}
+                        </span>
+
+                        {/* Hover Actions: Edit / Delete Column */}
+                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition">
+                          <button
+                            onClick={() => {
+                              setEditingColKey(col.key);
+                              setEditColLabel(col.label);
+                            }}
+                            className="text-slate-400 hover:text-indigo-300 p-0.5"
+                            title="Rename column"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteColumn(col.key)}
+                            className="text-slate-400 hover:text-rose-400 p-0.5"
+                            title="Delete column"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </th>
+                );
+              })}
               <th className="w-12 px-2 py-2.5 text-center"></th>
             </tr>
           </thead>
@@ -268,7 +372,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       {/* Grid Footer Info */}
       <div className="px-4 py-2 bg-slate-850 border-t border-slate-800 text-[11px] text-slate-400 flex justify-between items-center">
         <span>Total Records: {sheetData.rows.length} rows</span>
-        <span>Click any cell to edit • Use =SUM(col) for formulas</span>
+        <span>Double-click column header to rename • Click cell to edit • Hover to delete row/column</span>
       </div>
     </div>
   );
